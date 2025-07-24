@@ -1,12 +1,10 @@
-title: Your awesome title
+title: Sems
 author:
-  name: GitHub User
-  email: your-email@domain.com
+  name: Sems
+  email: semsyapar33@gmail.com
 
 description: >
-  Write an awesome description for your new site here. You can edit this line
-  in _config.yml. It will appear in your document head meta (for Google search
-  results) and in your feed.xml site description.
+  Yazmam gereken yada istediğim bazı şeyler
 
 theme: minima
 
@@ -51,9 +49,9 @@ minima:
   #     * icon     Font Awesome icon id. `github` corresponds to `fa-github`.
   #     * url      Full URL of social profile.
   social_links:
-    - title: Minima Theme repository at GitHub
+    - title: Sems
       icon: github
-      url: "https://github.com/jekyll/minima"
-    - title: Jekyll at X (formerly Twitter)
-      icon: x-twitter
-      url: "https://x.com/jekyllrb"
+      url: "https://github.com/SemsYapar"
+    #- title: Jekyll at X (formerly Twitter)
+      #icon: x-twitter
+      #url: "https://x.com/jekyllrb"
