@@ -20,7 +20,7 @@ Selam bugün staj kabulüm için araştırdığım ve kendisi için tespit mekan
 Türkçe "kontrol akışını ele geçirme" şeklinde çevirebiliriz. Anlaşıldığı üzere çook geniş bir saldırı spektrumundan bahsediyoruz bu saldırı türünün içine pwn tarafında bufferoverflow ile stack teki ret adresini ele geçirme yahut heapoverflow ile fonksiyon pointer larının üzerine shellcode adresimizi yazmak girebilir. Malware tarafında ise dümdüz hedef process in thread lerinden birini durdurup kendi ayarladığımız context i yükleyip shellcode umuzu çalıştırmak gibi fikirler bu saldırı vektörü altında toplanabilir. Kısaca programın olağan akışını durdurmak, zehirlemek yada değiştirmek gibi her türlü faaliyeti Control Flow Hijacking altında değerlendirebiliriz.
 
 ## Basit Bir Saldırı Örneği
-```c
+```csharp
 public static void Main(string[] args) {
     string processname = args.Length == 0 ? "explorer" : args[0];
     var showHelp = false;
