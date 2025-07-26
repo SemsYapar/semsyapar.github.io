@@ -32,7 +32,7 @@ Dilerseniz bu yöntemi kullanan ilk saldırı örneğimize geçelim ve yöntemi 
 
 ## Basit Bir Saldırı Örneği
 
-Basit saldırı örneği için [ThreadlessInject][https://github.com/CCob/ThreadlessInject/tree/master] deki injection kodunu kullanıcaz.
+Basit saldırı örneği için [ThreadlessInject]https://github.com/CCob/ThreadlessInject/tree/master deki injection kodunu kullanıcaz.
 Burdaki fikir hedef process deki main module(exe) un çalıştıracağını bildiğimiz bir fonksiyonu gözümüze kestirip onu hook lamak. Bu ister main module deki bir fonksiyon olsun ister onun kullandığı dll lerdeki. Hook lıcaz.
 Her açılışta exe nin yada diğer dll lerin process in virtual address space inde nerelerde olduğunu gözlememek istemediğimiz için (yada bunun malware yazarları için hiç pratik ve kolay olmadığı için) pdb file ına erişebildiğimiz yani sembollerine yani spesifik fonksiyonlarının hangi offsetlere veya rva lara yüklendiğini bildiğimiz dll veya exe lerin fonksiyonlarını hook lamak daha mantıklı ve çok daha kolay, daha da kolayı export edilmiş fonksiyonlarını hook lamak bunun için de windows api lerinden yararlanıcaz.
 Bunun için öncelikle fonksiyonunu hook lamak istediğimiz module ün handle ını `GetModuleHandle` api si ile alıp o module un bu handle aracılığı ile hangi export edilmiş fonksiyonuna erişmek istiyorsak `GetProcAddress` api sine fonksiyon ismini verip export edilen fonksiyonun adresini cebe atıyoruz.
