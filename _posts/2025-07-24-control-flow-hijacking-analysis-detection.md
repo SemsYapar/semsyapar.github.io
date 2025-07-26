@@ -123,6 +123,7 @@ explorer.exe `TranslateAcceleratorW` api sini neredeyse her saniye çağırıyor
 </video>
 Projenin son halini link olarak veriyim isteyen direkt ordan baksın, daha rahat. Neden size bu rahatlığı sunmıyım ki.
 <a href="/projects/ThreadlessInject_last_version.rar">Projenin son hali</a>
+
 ## Basit Saldırı Örneğine Karşı Statik ve Dinamik Tespit Mekanizmaları
 
 ## Karmaşık Bir Saldırı Örneği
