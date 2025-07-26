@@ -118,7 +118,7 @@ Bu işlemlerle önce hook fonksiyonumuza tahsis ettiğimiz adrese(loaderAddress 
 
 explorer.exe `TranslateAcceleratorW` api sini neredeyse her saniye çağırıyor o yüzden onu hook lamak istedim. Görelim.
 <video width="640" height="360" controls>
-  <source src="https://youtu.be/bGGBj843NV4" type="video/mp4">
+  <source src="control-flow-hijack-basic-poc.mkv" type="video/mp4">
   Tarayıcınız video etiketini desteklemiyor.
 </video>
 
