@@ -116,7 +116,11 @@ status = ProtectVirtualMemory(
 ```
 Bu işlemlerle önce hook fonksiyonumuza tahsis ettiğimiz adrese(loaderAddress diye geçiyor kodda)(`FindMemoryHole` fonksiyonu ile allocate ettiğimiz adres) hook fonksiyonumuzu yazıyoruz.
 
-explorer.exe nin kullandığı `TranslateAcceleratorW` api si mouse umuzu her hareket ettirdiğimizde tetikleniyor. hijack imizin başarısını da şöyle bir video ile görelim.
+explorer.exe `TranslateAcceleratorW` api sini neredeyse her saniye çağırıyor o yüzden onu hook lamak istedim. Görelim.
+<video width="640" height="360" controls>
+  <source src="https://youtu.be/bGGBj843NV4" type="video/mp4">
+  Tarayıcınız video etiketini desteklemiyor.
+</video>
 
 
 ## Basit Saldırı Örneğine Karşı Statik ve Dinamik Tespit Mekanizmaları
