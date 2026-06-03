@@ -2,6 +2,7 @@
 layout: post
 title: "Zigot Ransomware Challenge"
 categories: blue
+date: 2025-08-13
 ---
 
 

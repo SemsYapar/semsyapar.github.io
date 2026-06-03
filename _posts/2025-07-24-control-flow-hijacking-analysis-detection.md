@@ -2,6 +2,7 @@
 layout: post
 title: "Threadless Control Flow Hijacking Methods, Analysis and Detection"
 categories: blue
+date: 2025-07-24
 ---
 
 Selam bugün staj kabulüm için araştırdığım ve kendisi için tespit mekanizmaları geliştirmeye çalışacağım control flow hijacking konusunu irdeleyeceğiz.
