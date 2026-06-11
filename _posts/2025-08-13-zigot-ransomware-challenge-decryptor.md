@@ -88,9 +88,3 @@ else:
             print(f"{f.name} → {cleaned_file.name} olarak çözüldü.")
 
 ```
-
-POC:
-<video width="640" height="360" controls>
-  <source src="/videos/zig1.mkv" type="video/mp4">
-  Tarayıcınız video etiketini desteklemiyor.
-</video>
