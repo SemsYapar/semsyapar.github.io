@@ -37,7 +37,6 @@ Programın giriş fonksiyonuna baktığımızda bizi bu aralar görmeye çok aş
 ```
 
 module_resolver fonsksiyonu peb->ldr->InLoadOrderModuleList üzerinden windows loader ının process e yüklediği ntdll, kernelbase gibi module leri dolanıyor ve yaptığı hash işlemi ile istediği module un adresini dönüyor
----
 
 Module adresini çektik, şimdi o module lerden istediğimiz fonksiyonların adreslerini çekme zamanı
 
@@ -59,7 +58,6 @@ api_resolver hedef module ün export table ına gidiyor, fonksiyonlarını hash 
 Bu şekilde elde edilen fonksiyon adresleri şunlar:  
 VirtualAlloc, VirtualFree, VirtualProtect, LoadLibraryA, GetProcAddress, FlushInstructionCache, RtlAddFunctionTable  
 Bunlardan son ikisi daha önce pek görmediğim fonksiyonlardı bu program ile birlikte tanımış oldum.
----
 
 ```
     mov rax,qword ptr gs:[60] //peb
@@ -97,7 +95,6 @@ Bunlardan son ikisi daha önce pek görmediğim fonksiyonlardı bu program ile b
 
 Gene peb aracılığı ile main module ümüze ulaşıyoruz ve tüm section larımızın tek tek isimlerine bakıyoruz. '.lpk' ismindeki özel section umuzu arıyoruz.  
 Bulunca ilk ve 4. byte ını kontrol ediyoruz bu section un. Eğer [0] == 'L' ve [3] == 'N' ise devam ediyoruz.
----
 
 Şimdi sıra kişisel olarak hoşuma giden code section hash hesaplama yerinde:
 ```
@@ -109,7 +106,6 @@ Bulunca ilk ve 4. byte ını kontrol ediyoruz bu section un. Eğer [0] == 'L' ve
     jb protected_crackme.7FF7C3AF4960
 ```
 Yukarda .lpk section unu aradığımız döngüde özel olarak ilk section un virtualAddress ve rawSize bilgilerini çekiyoruz. Bu bilgileri kullanarak hash basit bir hash döngüsü çalıştırıyoruz bu sayede code section da yapılan patch ve software breakpoint ler yakalanıyor.
----
 
 ```
     call <protected_crackme.code_section_hash_checker>
@@ -120,7 +116,6 @@ Yukarda .lpk section unu aradığımız döngüde özel olarak ilk section un vi
 ```
 
 Hash imiz bir sayısal değiştirme algoritmasından geçtikten sonra bu fonksiyon onu kontrol ediyor. Eğer hash doğru ise .lpk bölümünü çözüyor değilse je branch i ile programa veda ediyoruz. Bu kısmı geçebilmek için o ana kadar koyduğum tüm software breakpoint leri kapattım. Patch zaten yapmamıştım.
----
 
 code_section_hash_checker fonksiyonu eğer code section bozulmamışsa .lpk section unu çözüyor. ve onu loader fonksiyonuna iletiyor.
 ```
