@@ -8,7 +8,7 @@ date: 2026-07-10
 Windows Kernel i bir process sonlandırıldığında o Process in kullandığı belleği boşaltır, handle ları kapatır. Ve her process için tuttuğu [EPROCESS](https://learn.microsoft.com/en-us/windows-hardware/drivers/kernel/eprocess#eprocess) objesini de siler. Ama işte bazen silemez. Bu silemediği durumlarda hiçbir kod çalıştırmayan, belleği olmayan amaçsız bir process objemiz kalır elimizde. İşte bu objenin ifade ettiği process e Zombie Process denir.
 
 ## Bir Zombie Process nasıl oluşur?
-Bir Zombie Process oluşturmak için process kapanmadan önce o process in handle ını tutup bırakmamamız yani CloseHandle ile kapatmamamız lazım. Bunu yaptığımızda o process in kernel tarafında EPROCESS objesi silinmez çünkü onu gösteren bir handle vardır hala. Objenin HandleCount sayısı 0 olmadan kernel onu silmez ve artık bir zombi yaratmışızdır.
+Bir Zombie Process oluşturmak için process kapanmadan önce o process in handle ını tutup bırakmamamız yani CloseHandle ile kapatmamamız lazım. Hedef Process in handle ını alıyoruz sonra hedef process i yani zombi ye çevireceğimiz process i kapatıyoruz. Artık hedef process in kernel tarafında EPROCESS objesi, Object Manager'ın tuttuğu referans sayısı sıfıra düşmeden silinmeyecek. Böylece kapanmasına rağmen kernel de var olan bir process yani zombie process yaratmış olacaz.
 
 ## Zombie Process yapımı
 Basitçe bir zombie process yapmak için kapatmadan önce bir process in handle ını tutmak olacak. Bunun için basit bir kod yazalım:
@@ -83,7 +83,7 @@ No active threads
         THREAD ffffe28fdc098080  Cid 24a4.4920  Teb: 0000000000000000 Win32Thread: 0000000000000000 TERMINATED
 ```
 
-Göreceğiniz üzere kernel tarafında hala 9380 pid li bir process in objesi var. Ama terminate ettik? Aynı şekilde en aşağıda göreceğiniz üzere thread in de objesi duruyor keza onunda handle ını close etmemiştik. Tüm bunların sebebi handle ları kapatmamış olmamız. Bellekte bu gereksiz process ve thread objelerini tutuyoruz. İşte zombie process dediğimiz process bu.
+Göreceğiniz üzere kernel tarafında hala 9380 pid li bir process in objesi var. Aynı şekilde en aşağıda göreceğiniz üzere thread in de objesi duruyor keza onunda handle ını close etmemiştik. Tüm bunların sebebi handle ları kapatmamış olmamız. Handle ları kapatmadığımız için hala bu objeler referans ediliyor bu sebeple kernel onları silmiyor. Bu yüzden de bellekte bu gereksiz process ve thread objelerini tutmuş oluyoruz. Bellekte boş yere duran EPROCESS objelerinin açıkladığı process lere zombie process diyoruz.
 
 Süreci User-Space den takip etmek için c ile claude a yazdırdığım [şu](https://github.com/SemsYapar/ZombieScanner) programı kullanabiliriz:
 
