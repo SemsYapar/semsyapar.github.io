@@ -51,7 +51,7 @@ mspaint System32 de bulunan Windows un yerleşik pain uygulaması onu en normal 
 
 Programı derleyip çalıştıralım. getchar fonksiyonu sayesinde program kapanmayacak bu önemli aksi takdirde kernel bizim bilerek kapatmadığımız handle ları bizim yerimize kapatır.
 
-![image1](pictures/zombie_processes/image1.png)
+![image1](/pictures/zombie_processes/image1.png)
 WinDbg üzerinden local kernel debugging i açtım. Şimdi kapanan mspaint.exe process sinin hala kernel tarafında tutulduğunu kanıtlamak için "!process 24a4" komutunu çalıştıralım: (WinDbg sayı olarak hex kabul edeceği için 9380 in hexadecimal karşılığı olan 24a4 ü kullandım)
 
 ```
@@ -88,7 +88,7 @@ Göreceğiniz üzere kernel tarafında hala 9380 pid li bir process in objesi va
 Süreci User-Space den takip etmek için c ile claude a yazdırdığım [şu](https://github.com/SemsYapar/ZombieScanner) programı kullanabiliriz:
 
 Programı çalıştırdığımızda arka planda hala dene.exe çalışıyorken mspaint i zombie process olarak görebiliyoruz:
-![image2](pictures/zombie_processes/image2.png)
+![image2](/pictures/zombie_processes/image2.png)
 
 dene.exe yi kapatınca kernel onun kapatmadığı handle ları da kapattığı için artık böyle bir zombie process kalmıyor.
 
