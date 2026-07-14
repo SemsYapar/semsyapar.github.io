@@ -154,6 +154,7 @@ Yukarda gördüğünüz kodlar ana binary mizin sonunu içeriyor. Ama merak etme
 Yeni exe mizin içine girer girmez ilk fark ettiğimiz şey ağır bir obfuscation. Artık her şeyi anlamlandırmayı bırakıp detaylara odaklanma zamanı geldi.
 
 ```
+    mov ecx,FFFFFFF6
     call qword ptr ss:[rsp+30] //GetStdHandle
     mov dword ptr ss:[rsp+2C],0
     mov qword ptr ss:[rsp+20],0
