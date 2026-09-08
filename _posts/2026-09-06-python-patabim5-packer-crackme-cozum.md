@@ -22,7 +22,7 @@ Zip i çıkartıp THTCTF klasörüne girdiğimizde bizi birkaç dizin ve dosya k
 ```
 
 D adında büyük uzantısız dosya ilgimi çekiyor içine baktığımda okunabilir python kodu görüyorum:  
-![D](/pictures/Patabim5Crackme/D.png)  
+![D](/pictures/Patabim5Crackme/D.png) 
 
 3 tane daha klasör var bunların hepsinin içinde sadece "\__init__.pyc" dosyası var. Python için bu isimlendirmenin özel bir anlamı var. Python da bir paketi import ettiğimizde bu pakette \__init__ isimli python modülü varsa python paket yükleyicisi bu modülü otomatik olarak çalıştırıyor. Yani ulik1, \__load, \__patabim5__ isimli paketlerdeki init kodlarının çalışması için main.py nin bunları import etmesi yeter.  
 main.py içindeki kod şöyle:  
@@ -33,7 +33,7 @@ exec(ulik1.ulik2([f'\\x{b:02x}' for b in "\x0a\x56\x55\x48...".encode('latin-1')
 import ulik1, demin söylediğim gibi ulik1 dizinindeki \__init__.pyc kodunun çalıştırılmasını tetikliyor. Sonra ulik1 paketindeki ulik2 isimli bir fonksiyona bir byte dizininin belli bir formata getirilip argüman olarak verildiğini görüyoruz.
 Burda şaşırtıcı olan nokta ulik1 altındaki \__init__.pyc yi disassembly edip baktığımızda içinde ulik2 fonksiyonunun tanımlanmamış olduğunu görmemiz. O halde bu fonksiyon nerden geldi? Cevap gene disassembly de.
 Öncelikle disassembly ye biraz bakalım. Öbek öbek verilerin decompress edildiğini görüyoruz:
-![ulik1_1](/pictures/Patabim5Crackme/ulik1_1.png)
+![ulik1_1](/pictures/Patabim5Crackme/ulik1_1.png)  
 decompress edilen her veri için zlib tekrar tekrar import edilip decompress ve decode fonksiyonları  çağrılıyor. Buralar çok karmaşık o yüzden detaya girmiyeceğim ama tüm bu işlemler sonucu elde edilen veriler marshal.loads ile kod objesi haline getiriliyor sonrada exec ile çalıştırılıyor. exec in kullanıldığını direkt göremiyoruz çünkü o da decompress edilerek elde edilen bir string olarak tutuluyor.
 
 marshal.loads + exec sistemini daha iyi gözlemleyebilmek için iki adet hook ekliyorum main.py ye biri marshal.loads çağrılarını tutacak diğerine exec çağrılarını
@@ -57,7 +57,7 @@ import ulik1
 hook ların ikisine de breakpoint koyup kodu çalıştırırsanız ulik1 in import edilmesi anından sonra önce marshal.loads ın sonra exec in çalıştığını görebilirsiniz tabii ilk başta çalışan load ve exec işlemi pyc yi load etmek ve çalıştırmak için python yükleyicisi tarafından tetiklenecek birkaç tane standart kütüphane load ı da olabilir bunları geçmeniz lazım. Bir süre sonra co_filename inin `<ptbm_codecs>` olduğu bir modülün yüklendiğini göreceksiniz modülün names kısmına bakarsanız ulik2 nin bu modülde tanımlanan bir fonksiyon olduğunu görebilirsiniz. Bu modülü disassembly edip incelediğinizde ulik2 fonksiyonunun tanımlanmasını sağlayan bir koddan ibaret olduğunu görebilirsiniz.
 
 ulike2 nin loads edildiği an:  
-![ulik2](/pictures/Patabim5Crackme/ulik2_1.png)
+![ulik2](/pictures/Patabim5Crackme/ulik2_1.png)  
 
 ulik2 disassembly si: 
 ```
@@ -354,7 +354,7 @@ def hook_exec(code, *args):
 
 builtins.exec = hook_exec
 ```
-Hook umu bu hale getiriyorum ve exception a düşmesini bekliyorum. Beklediğim gibi de oluyor. \__traceback__ nesnesinde exception zincirini bulabiliyoruz. Zincirde en geriye gittiğimizde ve 'lasti' alanına baktığımızda hangi offset de exception un oluştuğunu görebiliyoruz buda `______________________________________` fonksiyonun 2. offset i imiş. Hemen bakalım ne var orda:  
+Hook umu bu hale getiriyorum ve exception a düşmesini bekliyorum. Beklediğim gibi de oluyor. \__traceback__ nesnesinde exception zincirini bulabiliyoruz. Zincirde en geriye gittiğimizde ve 'lasti' alanına baktığımızda hangi offset de exception un oluştuğunu görebiliyoruz buda `______________________________________` fonksiyonunun 2. offset i imiş. Hemen bakalım ne var orda:  
 "2       LOAD_GLOBAL              0 (A)"
 A global değişken olarak yüklenmeye çalışıyor. Artık neden hatanın oluştuğunu biliyoruz. Biz exec i hook ladığımızda onu hook fonksiyonumuzun local scope unda çalıştırmış oluyoruz bu yüzden 40. offset deki A değişken tanımı normalde direkt modül üzerinde tanımlanan global bir değişken olacakken sadece bizim fonksiyonumuzda tanımlanmış oluyor sonrada LOAD_GLOBAL global değişkenler arasında A yı bulamayınca hata veriyor. Bu problemi çözmek için A değişkeninin default hook fonksiyonumuzda tanımlanmamasını sağlamak adına kendimiz bir scope yaratıp exec in onu kullanmasını sağlayacağız. böylece A orda tanımlanacak sonrasında A yi arayan fonksiyonda bu scope da arayacak ve bulacak.
 
@@ -396,10 +396,10 @@ Bu kısım var. Burda hemen bir uyarıda bulunayım bu haliyle __load paketinin 
 UL20503 fonksiyonu artık elimizde, disassembly sini göstermiyeceğim çok uzun ama diğerleri gibi bunun da sonunda exec var yani hook umuz düzgünce çalışacak.
 bu fonksiyonun içine D dosyasındaki koca veri argüman olarak veriliyor.  
 D verisinin içinde çok sayıda constant anlamsız gözüken parça var. UL20503 bu parçaları esas kod byte ları ile değiştirip D verisinin gerçek bir kod objesine dönüştürülebilmesini sağlıyor. İşte UL20503 den küçük bir kesit:  
-![UL20503](/pictures/Patabim5Crackme/UL20503.png)
+![UL20503](/pictures/Patabim5Crackme/UL20503.png)  
 
 UL20503 bu işlemi bitirdikten sonra düzeltilmiş D kod objesini çalıştırıyor:  
-![UL20503_2](/pictures/Patabim5Crackme/UL20503_2.png)
+![UL20503_2](/pictures/Patabim5Crackme/UL20503_2.png)  
 çalıştırılan düzeltilmiş D kod objesini gözlemleyebilmek için gene exec hook umun başına geçiyorum. 
 ```
 b'\nimport zlib\nexec(zlib.decompress(b\'x\\x9cT\\x9dgW\\x15\\xdb\\xd6\\x84\\xbf...\'))\n'
@@ -871,10 +871,10 @@ class _getattr:
 ```
 
 Sınıf ın loads fonksiyonunda daha önce gördüğümüz hook kontrolü mekanizması var. Hook umuzu kapatmak istemiyoruz o zaman loads fonksiyonunu da biz çağıralım. Çağıralım çağırmasına ama bu seferki çağırma o kadar basit değil çünkü loads a gereken parametreleri bilmek için disassembly den gerekli parçaları toplamamız lazım. Disassembly ye bakınca sadece loads a argüman verilmediği aynı zamanda yeni key ve tweak değerleri ile _getattr class ından yeni bir nesne oluşturulduğunu ve bu nesnenin loads fonksiyonuna argüman verildiğini görüyoruz:  
-![loads](/pictures/Patabim5Crackme/loads.png)
+![loads](/pictures/Patabim5Crackme/loads.png)  
 
 Bu argümanları kullanarak nesnemizi oluşturalım nede olsa class kodu elimizde çok zor değil:D  
-![gettr](/pictures/Patabim5Crackme/gettr.png)
+![gettr](/pictures/Patabim5Crackme/gettr.png)  
 exec hookları temizlemekle uğraşmamak için direk loads fonksiyonunun içinde __secure yapılarını kazıdım. Sonuç olarak elimizde şifresi çözülmüş bir yığın byte string var. Bunları loads işleminden sonra marshal.loads ile code objesine dönüştürüp sonra çalıştırıyor kod bizde aynısını yapalım, bu seferkinin code objesinin filename i `pbim5`, ama içi çok tanıdık decompress+decode bissürü sonra exec. exec hook uma bakıyorum ne çalışacak diye. Bir tane daha `pbim5` çalıştı bunun boyutu biraz daha küçük tamamen aynı kod. Tekrar hook uma bakıyorum bu sefer çalışan `<ptbm_codecs>` içinde ilginç bir kod var decompile halini paylaşıyorum:  
 ```python
 import os
