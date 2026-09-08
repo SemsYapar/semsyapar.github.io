@@ -1076,7 +1076,7 @@ def PBIM_RUN(data):
 Daha agresif kontroller görüyoruz __secure gene var ama bu sefer fonksiyonlar da ram den silinmeye çalışılınıyor decrpytion mekanizması da var. Source code elimizde olduğu için hiçbirinin anlamı yok. Kontrolleri silip düzenliyorum tüm fonksiyonları. Şimdi son adımda sıra PBIM_RUN fonksiyonuna data verilecek şifre çözülecek ve marshal.loads ile bu veri code objesine dönüştürülecek ve son kez exec ile çalıştırılacak.  
 Son kez değilmiş:D `<pbim5>` dosya isimli bir modül çalıştırılıyor. Gene aynı decompress+decode+exec biz sıkıldık adam sıkılmadı. Hook uma bakıyorum. Bir tane daha aynı muhabbetten var. Tekrar hook uma bakıyorum. Ve bum!:  
 ```python
-def _(secret_key, encrypted_b64):
+def _(encrypted_b64, secret_key):
     from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
     from cryptography.hazmat.primitives import padding
 
@@ -1101,12 +1101,12 @@ while True:
 
     if flag == _(
         'cwbIxQLo9Y5G8A+Ca0+n2d86nRha59yQoy378JFENL6yfqeHloIYJP01abZlRqgx',
-        '382618362186372816372816'[:-1] + '!'
+        '382618362186372816372816'[::-1] + '!'
     ):
         print('Solved')
         exit(3)
-
-    print('Failed')
+    else:
+        print('Failed')
 ```
 
 Girdimizi AES-CBC ile çözdüğü doğru metin ile karşılaştıran bir kod: basitçe "_" fonksiyonunun dönüş değerine breakpoint koyarak doğru flag ı elde ediyorum:  
