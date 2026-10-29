@@ -1,0 +1,137 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:#fff;color:#1f2430;padding:34px 40px 48px}
+.wrap{max-width:960px;margin:0 auto}
+h1{font-size:25px;font-weight:800;letter-spacing:-.3px;margin-bottom:6px}
+.sub{font-size:13px;color:#64707f;margin-bottom:24px;line-height:1.5}
+.box{border:1.5px solid #c9d2dc;border-radius:11px;padding:14px 19px;background:#fff}
+.hd{font-size:15px;font-weight:700;font-family:ui-monospace,Menlo,Consolas,monospace}
+.lbl{font-size:10px;font-weight:700;letter-spacing:.7px;color:#7a8794;text-transform:uppercase;margin-bottom:7px}
+.mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.4px;line-height:1.65;color:#273142;white-space:pre-wrap}
+.mono b{font-weight:700;color:#1b2330}
+.desc{font-size:12.3px;color:#5f6b7a;line-height:1.45;margin-top:5px}
+.arrow{text-align:center;color:#9aa5b1;font-size:17px;margin:7px 0}
+.entry{background:#eef3fc;border-color:#aebfdc}.entry .hd{color:#2f55a4}
+.drv{border-color:#3a9b6e;background:#f4fbf7}.drv .hd{color:#1f7a4d}
+.err{color:#c0392b;font-size:11.8px;font-family:ui-monospace,Menlo,Consolas,monospace;margin-top:6px;line-height:1.6}
+.err b{color:#a5281b}
+.core{border:2px solid #3a9b6e;border-radius:11px}
+.core .chd{background:#ecf8f1;border-radius:9px 9px 0 0;padding:11px 19px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:14px;font-weight:700;color:#1f7a4d;border-bottom:1px solid #cdeadb}
+.core .cbody{padding:14px 19px}
+.step{font-size:10px;font-weight:700;letter-spacing:.7px;color:#3a9b6e;text-transform:uppercase;margin:12px 0 7px}
+.step:first-child{margin-top:0}
+.ioctl{display:flex;gap:9px;margin-top:2px}
+.ioctl .c{flex:1;border:1px solid #d3dae1;border-radius:8px;padding:8px 11px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;white-space:pre-wrap}
+.ioctl .c b{color:#2f55a4}
+.cols{display:flex;gap:9px}
+.cols .c{flex:1;border:1px solid #d6dde4;border-radius:8px;padding:9px 12px;font-size:11.6px;line-height:1.45}
+.cols .c .t{font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:700;font-size:12px;color:#273142;margin-bottom:3px}
+table{width:100%;border-collapse:collapse;margin-top:4px;font-size:11.8px}
+th,td{border:1px solid #d3dae1;padding:6px 10px;text-align:left;vertical-align:top;font-family:ui-monospace,Menlo,Consolas,monospace}
+th{background:#f3f6f9;font-weight:700;color:#3a4654;font-size:11px;font-family:-apple-system,"Segoe UI",sans-serif}
+td.k{font-weight:700;color:#8257c5}
+tr.row td{background:#f7f4fd}
+.reterr{background:#fdf1ef;border:1px solid #eab6ad;border-radius:8px;padding:10px 13px;margin-top:4px;font-size:11.8px;line-height:1.7;color:#9a3b30;white-space:pre-wrap}
+.reterr b{color:#8f2a1e}
+small{color:#8793a0}
+</style></head><body><div class="wrap">
+
+<h1>RtlDecryptMemory (≡ SystemFunction041) — decrypt flow</h1>
+<div class="sub">cng.sys 10.0.26100.1150 · decrypt direction only · each step shows the issuing call + its arguments. This is the transit layer; the DPAPI client opens the envelope with it after the RPC reply.</div>
+
+<div class="box entry">
+<div class="hd">RtlDecryptMemory ≡ SystemFunction041(buf, size, scope)</div>
+<div class="desc">cryptbase.dll · scope → IOCTL code (encodes <b>scope + direction</b>; SystemFunction041 ⇒ decrypt). in = out: same buffer.</div>
+<div class="err">invalid scope (not 0/1/2/4) → <b>0xC000000D</b> · \Device\KSecDD open fails → <b>0xC0000001</b></div>
+</div>
+<div class="ioctl">
+<div class="c"><b>SAME_PROCESS 0</b>
+0x390012</div>
+<div class="c"><b>CROSS 1</b>
+0x39001a</div>
+<div class="c"><b>SAME_LOGON 2</b>
+0x390022</div>
+<div class="c"><b>SYSTEM 4</b>
+0x39007e</div>
+</div>
+<div class="arrow">↓</div>
+
+<div class="box">
+<div class="lbl">Syscall · user → kernel</div>
+<div class="mono"><b>NtDeviceIoControlFile</b>(hKSecDD, IoControlCode, InBuf=buf, InLen=size, OutBuf=buf, OutLen=size)
+⇒ delivered as IRP · MajorFunction = <b>IRP_MJ_DEVICE_CONTROL</b> (IoControlCode, MDL(buf))</div>
+</div>
+<div class="arrow">↓</div>
+
+<div class="box drv">
+<div class="hd">ksecdd!KsecDispatch</div>
+<div class="desc">owns \Device\KSecDD; a crypto IOCTL is not one of its own → forward to the CNG extension.</div>
+</div>
+<div class="arrow">↓</div>
+
+<div class="box">
+<div class="lbl">Indirect call (CFG-guarded)</div>
+<div class="mono">(*<b>gKsecpDeviceControlExtension</b>)(inBuf, inLen, outBuf = MDL kernel VA, &amp;byteCount, IoControlCode, RequestorMode)</div>
+</div>
+<div class="arrow">↓</div>
+
+<div class="box drv">
+<div class="hd">cng!CngDeviceControl</div>
+<div class="desc">decode IOCTL code → (scope, dir=0).</div>
+</div>
+<div class="arrow">↓</div>
+
+<div class="box">
+<div class="lbl">Call</div>
+<div class="mono"><b>CngEncryptMemoryEx</b>(buf = outBuf, size = byteCount, dir = 0, scope)</div>
+</div>
+<div class="arrow">↓</div>
+
+<div class="box core">
+<div class="chd">cng!CngEncryptMemoryEx(buf, size, dir=0, scope)</div>
+<div class="cbody">
+<div class="desc" style="margin:0 0 4px"><small>first call — lazy root: SystemPrng ×3 → root24 · cross_key16 · RandomSalt (IV).</small></div>
+
+<div class="step">Decision 1 — size → algorithm</div>
+<div class="cols">
+<div class="c"><div class="t">size % 16 == 0</div>→ AES-128</div>
+<div class="c"><div class="t">size % 8 == 0 (≠ %16)</div>→ 3DES</div>
+</div>
+
+<div class="step">Decision 2 — scope → identity (which data contributes to the key)</div>
+<div class="cols">
+<div class="c"><div class="t">SAME_PROCESS</div>cookie(4) ‖ time(8)<br>ZwQueryInformationProcess(0x24) + PsGetProcessCreateTimeQuadPart</div>
+<div class="c"><div class="t">SAME_LOGON</div>LUID(8)<br>SeQueryAuthenticationIdToken</div>
+<div class="c"><div class="t">SYSTEM</div>constant 0x3e2 (8B)<br>decrypt: caller LUID must = 0x3e7 (else ACCESS_DENIED)</div>
+<div class="c"><div class="t">CROSS_PROCESS</div>no identity<br>(no derivation)</div>
+</div>
+
+<div class="step">Key = algorithm × scope</div>
+<table>
+<tr><th>&nbsp;</th><th>non-CROSS (with identity)</th><th>CROSS_PROCESS (no identity)</th></tr>
+<tr class="row"><td class="k">AES-128</td><td>SHA1(root24 ‖ identity)[:16]</td><td>g_AESKey (= cross_key16)</td></tr>
+<tr class="row"><td class="k">3DES</td><td>SHA1(root ‖ "aaa" ‖ id)[:20] ‖ SHA1(root ‖ "bbb" ‖ id)[:4]</td><td>g_DES3Key (= root24)</td></tr>
+</table>
+
+<div class="step">Early returns (error code)</div>
+<div class="reterr">unaligned size (neither %16 nor %8) → <b>STATUS_INVALID_PARAMETER 0xC000000D</b>
+lazy root (SystemPrng) fails → <b>STATUS_UNSUCCESSFUL 0xC0000001</b>
+SAME_PROCESS · ZwQueryInformationProcess fails → returned NTSTATUS
+SAME_LOGON / SYSTEM · impersonation level too low → <b>STATUS_BAD_IMPERSONATION_LEVEL 0xC00000A5</b>
+SYSTEM · caller LUID ≠ 0x3e7 → <b>STATUS_ACCESS_DENIED 0xC0000022</b>  (active on decrypt)</div>
+</div>
+</div>
+<div class="arrow">↓</div>
+
+<div class="box">
+<div class="lbl">Cipher — SymCrypt CBC, decrypt (dir=0)</div>
+<div class="mono"><b>SymCryptAesCbcDecrypt</b>(key, IV = RandomSalt(16B), src = buf, dst = buf, len = size)</div>
+<div class="desc">3DES path: per 8-byte block <b>SymCrypt3DesDecrypt</b>(key, in, out) with manual CBC chaining, IV = RandomSalt[:8].</div>
+</div>
+<div class="arrow">↓</div>
+
+<div class="box entry">
+<div class="hd">buf ← plaintext &nbsp;<small>(in-place)</small></div>
+</div>
+
+</div></body></html>

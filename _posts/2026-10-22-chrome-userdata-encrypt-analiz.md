@@ -227,9 +227,53 @@ os_crypt_async::Encryptor::DecryptFlags flags;
 ```
 - key Chrome memory sinde plain olarak tutulmuyor. CryptProtectMemory adında aslında sadece bir RtlEncryptMemory sarmalayıcısı olan Windows API si ile memory de şifreli olarak tutuluyor ve şifreleme için kullanılacağı Zaman CryptUnprotectMemory ile çözülüp kullanılıyor. (components/os_crypt/async/common/encryptor.cc:Encryptor::Key::Encrypt)
 
-Tamam veriler aes ile şifreleniyor, veriyi şifreleyen key ise bir sefer oluşturulup sonra dpapi ile şifrelenip "Local State" dosyasında tutuluyor. Buraya kadar Chromium tarafını inceledik şimdi Windows un aes key ini nasıl şifrelediğini inceleyelim.
+Tamam veriler AES-256-GCM key ile şifreleniyor, veriyi şifreleyen key ise bir sefer oluşturulup sonra dpapi ile şifrelenip "Local State" dosyasında tutuluyor. Buraya kadar Chromium tarafını inceledik şimdi Windows un aes key ini dpapi ile nasıl şifrelediğini inceleyelim.
 
 ## Windows CryptProtect/UnprotectData tersine mühendisliği
 
 Encryption zincirinden başlayalım zaten diğeride onun simetrik tersi olacak. İlk hedef crypt32.dll indeki CryptProtectdata fonksiyonu. Bu fonksiyon key i şifrelemek için kullandığımız fonksiyon.  
 Yaptığı tek şey prompt göstermesi gerekip gerekmediğini kontrol etmek (evet bu fonksiyon normalde kullanıcıya prompt da gösteriyor bir izin mahiyetinde hatta istersek bu prompt da kullanıcıdan girdi de alabiliyoruz bu girdi de birazdan göreceğimiz entropy2 argümanı olarak şifreleme işlemine dahil ediliyor)
+
+Fonksiyonun imzası şu şekilde:  
+```c
+DPAPI_IMP BOOL CryptProtectData(
+  [in]           DATA_BLOB                 *pDataIn,/*şifrelenecek veri*/
+  [in, optional] LPCWSTR                   szDataDescr,/*bu verinin özeti(prompt gösterilecekse 
+                                                            bu özet yazısı kullanıcıya gösteriliyor)*/
+  [in, optional] DATA_BLOB                 *pOptionalEntropy,/*şifrelemeye ekstra girdi*/
+  [in]           PVOID                     pvReserved,/*şimdilik bizi bağlamıyor*/
+  [in, optional] CRYPTPROTECT_PROMPTSTRUCT *pPromptStruct,/*prompt detayları(olacaksa)*/
+  [in]           DWORD                     dwFlags,/*Genel flag lar*/
+  [out]          DATA_BLOB                 *pDataOut/*şifrelenmiş veri*/
+);
+```
+
+Prompt gösterme ve onaylama hatta prompt ile istersek dediğim gibi girdi de alabiliyoruz kullanıcıdan, bunları tamamladıktan sonra esas şifreleme işlemi için argümanlar bir sonraki fonksiyonumuz olan CryptProtectDataNoUI ye devrediliyor:
+
+```c
+BOOL CryptProtectDataNoUI (
+  DATA_BLOB * pDataIn,
+  LPCWSTR szDataDescr,
+  DATA_BLOB * pOptionalEntropy,
+  PVOID pvReserved,
+  CRYPTPROTECT_PROMPTSTRUCT * pPromptStruct,
+  DWORD dwFlags,
+  PVOID pvEntropy2,
+  DWORD cbEntropy2,
+  DATA_BLOB * pDataOut
+)
+```
+
+Gördüğünüz üzere tek fark entropy2 nin gelmesi o da duruma bağlı prompt dan geliyor yukarda söylediğim gibi. Peki bu fonksiyon ne yapıyor, dpapi.dll de tanımlı bu fonksiyon esas işlevi yerine getirecek olan dpapisrv.dll ile iletişim kurup rpc üzerinden şifrelenecek veriyi LSASS(Local Security Authority Subsystem Service) e aktarma görevini üstleniyor. Burda lsass ne buna girmicem ama Windows un kritik process lerinden biri olduğunu çok sıkı korunduğunu ve temel amacının bilgisayarınızdaki lokal oturum işlemlerini doğrulamak ve yönetmek olduğunu söyleyebilirim. Peki neden lsass katına çıktık. Çıktık evet çünkü lsass hassas bilgiler içeren bir process, kullanıcı masterkey leri gibi... Bizim masterkey ile işimiz var birader çünkü amacımız en baştan beri belirttiğimiz gibi sadece kullanıcının kendinin şifresini çözebildiği bir şifreleme hizmeti vermek. Masterkey lerde bunun için var. Şuan açıp bakabilirsiniz %APPDATA%\Microsoft\Protect dizini altında kullanıcı SID inizin olduğu dosyada masterkey leriniz bulunur bunları görmek için tabii explorer da sistem dosyalarını gör ayarını yapmanız lazım. Bu dosyalarda masterkey leriniz şifreli olarak tutulur ve bu şifrenin anahtarı da sizin kullanıcı parolanızdır. Tabii çok değişken durumlar var MSA ile oturum açmış olabilirsiniz, PIN ile oturum açmış olabilirsiniz, bir domain ağındaki bir kullanıcı olabilirsiniz biz bu seçenekleri şimdilik kapatalım. Local bir kullanıcı hesabınızın olduğu en basit senaryoyu konuşalım.  
+
+CryptProtectDataNoUI RPC ile ncalrpc:protected_storage e bağlanır bu lsass process inde çalışan dpapisrv.dll in dinlediği hattır. Sonra sırayla SystemFunction040 ve NdrClientCall3 fonksiyonlarını çalıştırır. NdrClientCall3 şifrelenecek veriyi dpapisrv nin ilgili interface inin hedef fonksiyonunu(operation number ile seçerek) gönderir ve cevabı dpapisrv den bekler. Ondan önce SystemFunction040 diye gözüken ama esas adı RtlEncryptMemory olan fonksiyon ise yola çıkacak plaintext imizi yani şifrelenecek verimizi yol için şifreler, bu şifreleme o oturum için bir şifrelemedir. RtlEncryptMemory veriyi şifrelemek için her boot time da kernel daki CNG.sys(Cryptographic Next Generation) driver ında rastgele oluşturulan anahtarları kullanır. O yüzden şifrelenen veri bilgisayar kapatılıp açılınca artık geri çevrilemez. Kısa vaadeli şifrelemeler için kullanılır. Burda amacımız RPC verisini güvenli şekilde taşımak olduğu için kullanımı anlamlıdır. 4 adet şifreleme modu vardır. Bunlar: Same Process, Cross Process, Same Logon ve System dir.  
+Same Process modu veriyi api yi çağıran process in kimliğinide kullanarak şifreler böylece sadece o process bu şifreyi çözebilir olur.  
+Cross Process veriyi şifrelerken ekstra anahtar kullanmaz o yüzden herkes çözebilir olur.  
+Same Logon veriyi Logon LUID ile şifreler böylece o oturumdaki o kullanıcını yetkisi ile çalışan process ler şifreyi çözebilir.  
+System ise adından da anlaşılacağı gibi veriyi sadece System kullanıcısının deşifre edebilmesini sağlar bunun için veriyi çözerken çözmek isteyen yani api yi çağıran process in token ine bakar. System token i değilse veriyi çözmez.  
+
+İyi anlatabildiysem bizim durumumuzda hangi şifreleme yöntemini kullanmamız daha doğru tahmin edebiliyor olmanız gerekiyor. Aslında gerekmiyor:D çünkü tatlı bir trick var. Cross Process en mantıklısı gibi gelecektir ama Same Logon kullanılıyor. Nasıl Same Logon lsass nasıl çözecek veriyi System kullanıcısı o dediğinizi duyar gibiyim. Olay şu ki. dpapisrv.dll içinde rpc çağrısını yapan process in token ine RpcImpersonateClient api si ile bürünüp öyle RtlDecryptMemory ile şifreli veriyi çözer. Sonrada bu veriyi masterkey ile şifreleyip geri isteyen process e iletir.  
+
+Burda algılayışınızı netleştirmek için claude ile özene bezene hazırladığım birkaç diagramı sizle paylaşmayı uygun gördüm. Yazımın bu noktasına kadar değindiğim genel CryptProtect/UnprotectData zincirini ve bu zincirde spesifik olarak geçiş(transit) aşamasında kullanılan SystemFunction40 ve 41 i yani RtlEncDec fonksiyonlarını kernel akışları ile beraber gösteren diagramlar olacak bunlar.  
+
+<iframe src="/diags/rtl_decrypt_flow.html" width="100%" height="500px" style="border:none;"></iframe>
