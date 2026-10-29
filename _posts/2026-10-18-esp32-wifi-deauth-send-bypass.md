@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "ESP32 WiFi Kütüphanesinde Deauth Check Bypass"
+title: "ESP32 WiFi Kütüphanesinde Frame Type Check Bypass"
 date: 2026-10-18
 ---
 
