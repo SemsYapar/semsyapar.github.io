@@ -251,17 +251,3 @@ if __name__ == "__main__":
             print(f"  {name:13s} key={key.hex()} rt={'OK' if dec==pt else 'FAIL'}")
         except NtStatusError as e:
             print(f"  {name:13s} {e}")
-
-    # AES vector verified live with KDNET (SAME_LOGON, caller LUID = 0x441D4).
-    # Off Windows os_logon_id() returns a constant; to reproduce the vector we
-    # pin the LUID to 0x441D4 temporarily (scope_identity reads this global).
-    print("== verification vector (SAME_LOGON, LUID=0x441D4) ==")
-    os_logon_id = lambda: 0x441D4          # noqa: overrides the global within this module scope
-    globals()['os_logon_id'] = os_logon_id
-    key = derive_aes_key(mat, SAME_LOGON, False)
-    ct  = rtl_encrypt_memory(mat, bytes(range(0x10)), SAME_LOGON)
-    ok  = (key.hex() == "79b91d16b1e9f077f6cae6c8118098bf" and
-           ct.hex()  == "d446c89255303b827cb03c55810f6246")
-    print("  key :", key.hex())
-    print("  ct  :", ct.hex())
-    print("  matches kernel vector:", "OK" if ok else "FAIL")

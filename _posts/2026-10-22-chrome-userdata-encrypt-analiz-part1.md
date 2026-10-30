@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Google Chrome User Data Encryption Analizi - Windows"
+title: "Google Chrome Windows, User Data Encryption Analizi Part1"
 date: 2026-10-24
 ---
 
@@ -282,7 +282,7 @@ Mekanizmanın nasıl çalıştığını kendi gözlerinizle görmek istiyorsanı
 <details markdown="1"> 
 <summary>cng_encdec_memory.py</summary>
 ```python
-{% include_relative kods/cng_encdec_memory.py %}
+{% include kods/cng_encdec_memory.py %}
 ```
 </details>  
 
