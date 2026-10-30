@@ -266,7 +266,27 @@ BOOL CryptProtectDataNoUI (
 
 Gördüğünüz üzere tek fark entropy2 nin gelmesi o da duruma bağlı prompt dan geliyor yukarda söylediğim gibi. Peki bu fonksiyon ne yapıyor, dpapi.dll de tanımlı bu fonksiyon esas işlevi yerine getirecek olan dpapisrv.dll ile iletişim kurup rpc üzerinden şifrelenecek veriyi LSASS(Local Security Authority Subsystem Service) e aktarma görevini üstleniyor. Burda lsass ne buna girmicem ama Windows un kritik process lerinden biri olduğunu çok sıkı korunduğunu ve temel amacının bilgisayarınızdaki lokal oturum işlemlerini doğrulamak ve yönetmek olduğunu söyleyebilirim. Peki neden lsass katına çıktık. Çıktık evet çünkü lsass hassas bilgiler içeren bir process, kullanıcı masterkey leri gibi... Bizim masterkey ile işimiz var birader çünkü amacımız en baştan beri belirttiğimiz gibi sadece kullanıcının kendinin şifresini çözebildiği bir şifreleme hizmeti vermek. Masterkey lerde bunun için var. Şuan açıp bakabilirsiniz %APPDATA%\Microsoft\Protect dizini altında kullanıcı SID inizin olduğu dosyada masterkey leriniz bulunur bunları görmek için tabii explorer da sistem dosyalarını gör ayarını yapmanız lazım. Bu dosyalarda masterkey leriniz şifreli olarak tutulur ve bu şifrenin anahtarı da sizin kullanıcı parolanızdır. Tabii çok değişken durumlar var MSA ile oturum açmış olabilirsiniz, PIN ile oturum açmış olabilirsiniz, bir domain ağındaki bir kullanıcı olabilirsiniz biz bu seçenekleri şimdilik kapatalım. Local bir kullanıcı hesabınızın olduğu en basit senaryoyu konuşalım.  
 
-CryptProtectDataNoUI RPC ile ncalrpc:protected_storage e bağlanır bu lsass process inde çalışan dpapisrv.dll in dinlediği hattır. Sonra sırayla SystemFunction040 ve NdrClientCall3 fonksiyonlarını çalıştırır. NdrClientCall3 şifrelenecek veriyi dpapisrv nin ilgili interface inin hedef fonksiyonunu(operation number ile seçerek) gönderir ve cevabı dpapisrv den bekler. Ondan önce SystemFunction040 diye gözüken ama esas adı RtlEncryptMemory olan fonksiyon ise yola çıkacak plaintext imizi yani şifrelenecek verimizi yol için şifreler, bu şifreleme o oturum için bir şifrelemedir. RtlEncryptMemory veriyi şifrelemek için her boot time da kernel daki CNG.sys(Cryptographic Next Generation) driver ında rastgele oluşturulan anahtarları kullanır. O yüzden şifrelenen veri bilgisayar kapatılıp açılınca artık geri çevrilemez. Kısa vaadeli şifrelemeler için kullanılır. Burda amacımız RPC verisini güvenli şekilde taşımak olduğu için kullanımı anlamlıdır. 4 adet şifreleme modu vardır. Bunlar: Same Process, Cross Process, Same Logon ve System dir.  
+CryptProtectDataNoUI RPC ile ncalrpc:protected_storage e bağlanır bu lsass process inde çalışan dpapisrv.dll in dinlediği hattır. Sonra sırayla SystemFunction040 ve NdrClientCall3 fonksiyonlarını çalıştırır. NdrClientCall3 şifrelenecek veriyi dpapisrv nin ilgili interface inin hedef fonksiyonunu(operation number ile seçerek) gönderir ve cevabı dpapisrv den bekler. Ondan önce SystemFunction040 diye gözüken ama esas adı RtlEncryptMemory olan fonksiyon ise yola çıkacak plaintext imizi yani şifrelenecek verimizi yol için şifreler, bu şifreleme o oturum için bir şifrelemedir. RtlEncryptMemory veriyi şifrelemek için kernel deki ksecdd(Kernel Security Support Provider Interface) e gider gider, ksecdd de abisine yani CNG.sys(Cryptographic Next Generation) driver a gider. CNG her boot timeda rastgele oluşturulan anahtarları veriyi şifrelemek için kullanır.   
+```c
+undefined8 CngEncryptMemoryInitialize(void){
+  ...
+  uVar1 = SystemPrng(local_28,0x18);
+  if (uVar1 != 0) {
+    lVar3 = 0x10;
+    uVar1 = SystemPrng(local_48,0x10);
+    if ((uVar1 != 0) && (uVar1 = SystemPrng(&local_38,0x10), uVar1 != 0)) {
+  ...
+```
+veri 8 er byte a bölünecek şekilde zaten SystemFunction040/RtlEncryptMemory e girmeden önce padding edilmişti. CNG şifrelenecek veri boyutu eğer 16 nın katı ise AES-256-CBC, 8 in katı ise 3DES kullanır. Bu detayları sizi çok sevdiğim için veriyorum bu arada.  
+Mekanizmanın nasıl çalıştığını kendi gözlerinizle görmek istiyorsanız RtlEncrypt/DecryptMemory fonksiyonlarının bu macerasını python kodu ile simüle ettiğim aşağıdaki kod ile oynayabilirsiniz. Tabii sisteminizdeki gerçek şifreli verileri çözmek için kernel memory nizden Yukardaki kodda gördüğünüz 3 SystemPrng çıktısını almanız lazım. WinDbg ile yapabilirsiniz. 
+<details markdown="1"> 
+<summary>cng_encdec_memory.py</summary>
+```python
+{% include_relative kods/cng_encdec_memory.py %}
+```
+</details>  
+
+O yüzden şifrelenen veri bilgisayar kapatılıp açılınca artık geri çevrilemez. Kısa vaadeli şifrelemeler için kullanılır. Burda amacımız RPC verisini güvenli şekilde taşımak olduğu için kullanımı anlamlıdır. 4 adet şifreleme modu vardır. Bunlar: Same Process, Cross Process, Same Logon ve System dir.  
 Same Process modu veriyi api yi çağıran process in kimliğinide kullanarak şifreler böylece sadece o process bu şifreyi çözebilir olur.  
 Cross Process veriyi şifrelerken ekstra anahtar kullanmaz o yüzden herkes çözebilir olur.  
 Same Logon veriyi Logon LUID ile şifreler böylece o oturumdaki o kullanıcını yetkisi ile çalışan process ler şifreyi çözebilir.  
@@ -276,4 +296,5 @@ System ise adından da anlaşılacağı gibi veriyi sadece System kullanıcısı
 
 Burda algılayışınızı netleştirmek için claude ile özene bezene hazırladığım birkaç diagramı sizle paylaşmayı uygun gördüm. Yazımın bu noktasına kadar değindiğim genel CryptProtect/UnprotectData zincirini ve bu zincirde spesifik olarak geçiş(transit) aşamasında kullanılan SystemFunction40 ve 41 i yani RtlEncDec fonksiyonlarını kernel akışları ile beraber gösteren diagramlar olacak bunlar.  
 
+<iframe src="/diags/rtl_encrypt_flow.html" width="100%" height="500px" style="border:none;"></iframe>
 <iframe src="/diags/rtl_decrypt_flow.html" width="100%" height="500px" style="border:none;"></iframe>
