@@ -260,6 +260,8 @@ iki flag girdimiz var birincisi dwFlags, burda API nin nasıl çalışacağı ya
 pPromptStruct ayarlandığı takdirde API şifreleme işlemine başlamadan önce kullanıcının karşısına bir UI çıkartıp onay istiyor hatta özel flaglarla(STRONG) bu onayın yanında şifrede de istenebiliyor bu ek şifre entropy2 girdisi olarak değerlendirilicek.  
 input validasyonlarından ve UI gösterilecek mi gösterilmeyecek mi muhabbetinden sonra esas şifreleme işlemi için argümanlar bir sonraki fonksiyonumuz olan CryptProtectDataNoUI ye devrediliyor:
 
+### CryptProtectDataNoUI fonksiyonu ne yapıyor?
+
 ```c
 BOOL CryptProtectDataNoUI (
   DATA_BLOB * pDataIn,
@@ -306,9 +308,14 @@ PS C:\Users\sems\Desktop\codepy\os_crypt> python .\cng_encdec_memory.py decrypt 
 73656c616d0000000000000000000000
 ```
 
+### DPAPISRV deki hedef fonksiyon "s_SSCryptProtectData"
+
 RtlEncryptMemory ile şifrelenen veri RPC üzerinden dpapisrv deki hedef fonksina yani s_SSCryptProtectData ya gider. Burda önce yol için şifrelenmiş veri geri çözülecek sonrada esas şifreleme işlemi veriye uygulanacaktır. Geri çözme işlemi için basitçe RtlDecryptMemory çağırmak işe yaramaz çünkü veri dpapi.dll de  RtlEncryptMemory ile şifrelenirken SAME_LOGON moduyla şifrelendi. Yani sadece aynı kullanıcı yetkisi ile şifre çözülebilir. Amma ve lakin dpapi.dll bizi program process imizde çalıştı, dpapisrv ise System kullanıcısı yetkisi ile çalışır. Bu yüzden dpapisrv veriyi çözmeden önce RpcImpersonateClient api si ile istemcinin access token ine bürünür RtlDecryptMemory ile veriyi çözer sonrada hemen eski access token ine RevertToSelf ile kavuşur. İnce ama gerekli bir ara hamledir.  
 
 Artık veri şifrelenmeye hazır. Şifreleme için birçok farklı seçenek mevcut, tabii CryptProtectData yı dümdüz kullanırsanız Windows en "güçlü" sünü sizin için seçecek buda AES-256-CBC oluyor, iv imiz ise "0" güvenliksiz geliyor evet ama key öyle bir random oluştuluyorki iv e gerek kalmıyor gibi düşünebilirsiniz. AES key ini besleyen deterministik tek veri ise masterkey, masterkey şifreli olarak tutulduğu yerden çıkarılıyor ve LSASS tarafından bu şifre çözülüyor çünkü LSASS de oturum açan kullanıcının giriş şifresinin hash leri var. Bu hash ler şifreli masterkey i çözmek ve şifrelemek için kullanılıyor böylece kullanıcı ile masterkey birbirine bağlanmış oluyor. Masterkey ile veri şifreleniyor. Şifreli veri aynı RPC hattı üzerinden istemciye dönüyor. İşte CryptProtectData böyle çalışıyor.  
+
+### DPAPI Manuel drive(ov yeah)
+
 Beraber gerçekten sistemi doğru anlayıp anlamadığımızı test etmek için bu akışı python ile birlikte simüle edelim. Bu simülasyonda RtlEncDecMemory olmayacak çünkü biz veriyi gerçek anlamda RPC üzerinden LSASS e iletmicez. LSASS tarafında yada istemci tarafında uygulanan kriptolojik adımları taklit edicez. Kodlarda kullanılan tüm kütüphaneleri yazının sonunda bulabilirsiniz, buraları şişirmesin diye en sona koymaya karar verdim. İlk başta basitçe CryptProtectData yı çağırıp ondan dönen şifreli blob ı inceleyelim.  
 
 ```powershell
@@ -374,6 +381,9 @@ PS C:\Users\sems\Desktop\codepy\os_crypt> python .\dpapi_protect.py unprotect --
 [*] plaintext (5 B): 73656c616d
 selam
 ```
+
+### Ekstralar
+
 İsterseniz aynı işlemi entropy1 ve entropy2 argümanları ile yapadabilirsiniz, öyle yaparsanız çözerken entropy girdilerinide dpapi_protect e vermeniz lazım yoksa veri çözülemez. Description da verebilirsiniz. kafanıza göre.  
 
 Tabii başka yollarda var. Bildiğiniz gibi bilgisayarımızdaki tüm kullanıcılar bildiğimiz anlamda parola ya sahip değiller. Mesela System kullanıcısı, o bir veriyi şifrelemek istediğinde ne oluyor dersiniz? Yada Local Machine. Bunlar nasıl DPAPI yi kullanıyor? Çözüm şöyle geliştirilmiş. LSASS da tutulan kritik bir bilgi daha var. Buna DPAPI_SYSTEM deniliyor. 44 byte lık bir veri bu. ilk 4 byte versiyon sonraki 20 byte ı machine sırrı diğer 20byte ı user sırrı diye geçiyor. machine sırrı benim gördüğüm kadarıyla sadece Local Machine nin masterkey leri için kullanılıyor user sırrı ise parolası olmayan bir takım kullanıcılar için System gibi. Kafalar çok karışmadan bir deney daha yapalım. Öncelikle System kullanıcı olarak CryptProtectData yı tetikleyelim.  
@@ -459,7 +469,11 @@ ben sistemim
 
 Bunun birde local machine tarafı var. Orda ekstra olarak LOCAL_MACHINE flag ını da vermemiz gerekiyor şifrelerken ve çözerken çünkü LOCAL_MACHINE direkt bilgisayarın kendisini ifade ediyor bir yetki seviyesi yok flag yetiyor. O flag ı gören DPAPI de bu sefer machine sırrı ile veriyi şifreliyor tabii local machine nin masterkey i ile ki oda System masterkeylerinin olduğu dizinin bir arkasında(C:\WINDOWS\System32\Microsoft\Protect\S-1-5-18)  
 
+# Kapanış
+
 Bu yazıda DPAPI nin CryptProtect/UnprotectData API lerini elimden geldiğince irdeleyip size anlatmaya çalıştım. Daha çok detay var tabii ama sanırım şimdilik bu kadar yeter. Altta diagramları ve kodları bulabilirsiniz. Selametle kalın.
+
+# Materyaller
 
 KODLAR
 <https://github.com/SemsYapar/DPAPIScripts>
