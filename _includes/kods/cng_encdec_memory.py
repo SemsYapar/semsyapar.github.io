@@ -13,10 +13,10 @@ KEY DERIVATION (scope x algorithm):
   3DES / CROSS_PROCESS: root (24B) DIRECTLY as the 3DES key (g_DES3Key)
 On SYSTEM decrypt, if caller LUID != 0x3e7 -> 0xC0000022.
 
-ROOT MATERIAL (all SystemPrng raw outputs, kept raw in the kernel):
-  root24    (random #1, 24B) : db cng+0xbf240 L18  (g_ShaHash buffer; SHA root + CROSS-3DES)
-  cross_key (random #2, 16B) : db cng+0xbf1b0 L10  (g_AESKey raw; CROSS-AES)
-  iv        (random #3, 16B) : db cng+0xbf210 L10  (RandomSalt; CBC IV)
+ROOT MATERIAL (this boot's SystemPrng raw outputs, read from kernel memory):
+  root24    (random #1, 24B) : SHA root + CROSS-3DES key
+  cross_key (random #2, 16B) : CROSS-AES key
+  iv        (random #3, 16B) : CBC IV
 
 Requires: pip install pycryptodome
 """
@@ -217,37 +217,40 @@ def show_key(mat, data_len, scope, is_decrypt=False):
         return ("3DES",    derive_des3_key(mat, scope, is_decrypt))
     return ("INVALID", b"")
 
-# ============================================================
-# Example: encrypt/decrypt with keys read from the kernel
-# ============================================================
+_SCOPES = {"same_process": SAME_PROCESS, "cross_process": CROSS_PROCESS,
+           "same_logon": SAME_LOGON, "system": SYSTEM}
+
+def _main(argv=None):
+    import argparse, sys
+    ap = argparse.ArgumentParser(description="RtlEncryptMemory/RtlDecryptMemory (SystemFunction04x) model. "
+                                             "Needs this boot's kernel randoms (root/iv/cross).")
+    ap.add_argument("op", choices=["encrypt", "decrypt"])
+    ap.add_argument("--scope", choices=list(_SCOPES), default="same_logon")
+    ap.add_argument("--root",  required=True, metavar="HEX", help="24-byte root (random #1)")
+    ap.add_argument("--iv",    required=True, metavar="HEX", help="16-byte IV (random #3)")
+    ap.add_argument("--cross", required=True, metavar="HEX", help="16-byte cross key (random #2)")
+    gi = ap.add_mutually_exclusive_group(required=True)
+    gi.add_argument("--in", dest="infile", metavar="FILE", help="read input bytes from a file")
+    gi.add_argument("--hex", metavar="HEX", help="input as a hex string")
+    gi.add_argument("--text", metavar="STR", help="input as UTF-8 text")
+    ap.add_argument("--out", metavar="FILE", help="write result here instead of stdout hex")
+    a = ap.parse_args(argv)
+
+    mat = Material(bytes.fromhex(a.root), bytes.fromhex(a.iv), bytes.fromhex(a.cross))
+    if a.infile:  data = open(a.infile, "rb").read()
+    elif a.text:                                       # convenience: zero-pad text to the AES block (16)
+        data = a.text.encode("utf-8")
+        if len(data) % 16:
+            data += b"\x00" * (16 - len(data) % 16)
+            print("[*] padded input: %s" % data.hex())  # this is what actually gets encrypted
+    else:         data = bytes.fromhex(a.hex)          # raw: misaligned input yields 0xC000000D, as the API does
+    scope = _SCOPES[a.scope]
+    try:
+        out = rtl_encrypt_memory(mat, data, scope) if a.op == "encrypt" else rtl_decrypt_memory(mat, data, scope)
+    except NtStatusError as e:
+        print("[!]", e); sys.exit(1)
+    if a.out: open(a.out, "wb").write(out); print("[*] %sed (%s) -> %s" % (a.op, show_key(mat, len(data), scope)[0], a.out))
+    else:     print(out.hex())
+
 if __name__ == "__main__":
-    # SystemPrng raw outputs read from the kernel for this boot session:
-    mat = Material(
-        root24      = bytes.fromhex("775fc4584823dcae043dca33853900a404de03c2e96af6fb"),
-        iv16        = bytes.fromhex("0f91d1c3cf88ead4ec856938f6d694a6"),
-        cross_key16 = bytes.fromhex("7bc4ed1bdd86ab6697621434bd6f913f"),
-    )
-
-    print("== AES path (16-aligned) ==")
-    for scope, name in [(SAME_PROCESS,"SAME_PROCESS"), (CROSS_PROCESS,"CROSS_PROCESS"),
-                        (SAME_LOGON,"SAME_LOGON"), (SYSTEM,"SYSTEM")]:
-        pt = bytes(range(0x10))
-        try:
-            enc = rtl_encrypt_memory(mat, pt, scope)
-            dec = rtl_decrypt_memory(mat, enc, scope)
-            alg, key = show_key(mat, len(pt), scope)
-            print(f"  {name:13s} key={key.hex():32s} ct={enc.hex()} rt={'OK' if dec==pt else 'FAIL'}")
-        except NtStatusError as e:
-            print(f"  {name:13s} {e}")
-
-    print("== 3DES path (8-aligned, !%16) ==")
-    for scope, name in [(SAME_PROCESS,"SAME_PROCESS"), (CROSS_PROCESS,"CROSS_PROCESS"),
-                        (SAME_LOGON,"SAME_LOGON"), (SYSTEM,"SYSTEM")]:
-        pt = bytes(range(0x18))   # 24 bytes: %8==0, %16!=0
-        try:
-            enc = rtl_encrypt_memory(mat, pt, scope)
-            dec = rtl_decrypt_memory(mat, enc, scope)
-            alg, key = show_key(mat, len(pt), scope)
-            print(f"  {name:13s} key={key.hex()} rt={'OK' if dec==pt else 'FAIL'}")
-        except NtStatusError as e:
-            print(f"  {name:13s} {e}")
+    _main()

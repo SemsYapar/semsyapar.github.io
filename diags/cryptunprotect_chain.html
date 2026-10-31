@@ -1,0 +1,98 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:#fff;color:#1f2430;padding:34px 40px 48px}
+.wrap{max-width:900px;margin:0 auto}
+h1{font-size:25px;font-weight:800;letter-spacing:-.3px;margin-bottom:6px}
+.sub{font-size:13.5px;color:#64707f;margin-bottom:24px;line-height:1.55}
+.box{border:1.5px solid #c9d2dc;border-radius:11px;padding:14px 18px;background:#fff;margin:0}
+.lbl{font-size:10.5px;font-weight:700;letter-spacing:.7px;color:#7a8794;text-transform:uppercase;margin-bottom:7px}
+.mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.6px;line-height:1.75;color:#273142;white-space:pre-wrap}
+.mono b{font-weight:700;color:#12325b}
+.arg{color:#12325b;font-weight:700}
+.flag{color:#8257c5;font-weight:700}
+.dd,.mono b.dd{color:#3a9b6e;font-weight:700}
+.desc{font-size:12.4px;color:#5f6b7a;line-height:1.5;margin-top:6px}
+.arrow{text-align:center;color:#9aa5b1;font-size:17px;margin:7px 0}
+.chan{text-align:center;color:#8793a0;font-size:11.5px;font-family:ui-monospace,Menlo,Consolas,monospace;margin:7px 0}
+.entry{background:#eef3fc;border-color:#aebfdc}.entry .lbl{color:#2f55a4}
+.drill{border-left:4px solid #3a9b6e;background:#f3fbf6}
+.err{color:#c0392b}.mono .err b{color:#a5281b}
+.proc{border:1.6px dashed #b7c3cf;border-radius:13px;padding:13px;background:#fafbfc}
+.proc>.phd{font-size:11px;font-weight:700;letter-spacing:.5px;color:#5f6b7a;text-transform:uppercase;margin:1px 3px 11px}
+.proc>.phd .dot{color:#3a9b6e}
+.proc .box{margin-bottom:0}
+.legend{border:1px solid #d9e0e8;border-radius:10px;background:#f7f9fb;padding:12px 16px;margin-top:22px}
+.legend .lbl{color:#7a8794}
+.legend .mono{font-size:12px;line-height:1.8}
+small{color:#8793a0}
+</style></head><body><div class="wrap">
+
+<h1>CryptUnprotectData — call flow</h1>
+<div class="sub">The reverse of protect: app → crypt32 → dpapi.dll → ALPC → lsass/dpapisrv → back. The blob goes in as ciphertext; lsass decrypts it with the master key named inside the blob, then the <b>plaintext</b> is transit-encrypted for the trip back. Names <span class="dd">in green</span> have their own diagram.</div>
+
+<div class="box entry">
+<div class="lbl">application → crypt32.dll</div>
+<div class="mono"><b>CryptUnprotectData</b>(<span class="arg">pDataIn</span>=blob, <span class="arg">ppszDescr</span>, <span class="arg">pOptionalEntropy</span>, pvReserved, <span class="arg">pPromptStruct</span>, <span class="arg">dwFlags</span>, <span class="arg">pDataOut</span>)
+validate args · if (pPromptStruct dwPromptFlags &amp; 3: <span class="flag">PROMPT_ON_UNPROTECT</span> 0x1 / <span class="flag">PROMPT_ON_PROTECT</span> 0x2) → <b>CryptUnprotectPromptUI</b>
+&nbsp;&nbsp;if <span class="flag">PROMPT_STRONG</span> 0x8 → user re-supplies the secret → <b>ent2</b> (hash)
+→ calls CryptUnprotectDataNoUI</div>
+</div>
+<div class="arrow">↓</div>
+
+<div class="box">
+<div class="lbl">dpapi.dll · client stub · CryptUnprotectDataNoUI (ord 4)</div>
+<div class="mono"><b>RpcBindingFromStringBinding</b>("ncalrpc","protected_storage")
+<b>NdrClientCall3</b>(opnum <b>1</b>) → send the blob over ALPC, block for the reply
+<small>(the input is already ciphertext, so it is sent without a transit wrap)</small></div>
+</div>
+<div class="chan">↓ &nbsp; ALPC · ncalrpc:[protected_storage] · opnum 1 &nbsp; ↓</div>
+
+<div class="proc">
+<div class="phd"><span class="dot">●</span> lsass.exe · dpapisrv.dll · SPCryptUnprotect</div>
+
+<div class="box">
+<div class="lbl">dispatch → impersonate → decrypt with the master key → transit-wrap the plaintext</div>
+<div class="mono"><b>ProtectCallback</b>: allow <b>ncalrpc</b> only  <span class="err">· else <b>ACCESS_DENIED</b></span>
+NdrServerCall2 → <b>s_SSCryptUnprotectData</b>: not initialized <span class="err">→ 0x54f</span> · caller set <span class="flag">SYSTEM</span> 0x20000000 <span class="err">→ 0x57</span>
+input shorter than the 0x14 blob header <span class="err">→ 0x0D</span> · CPSCreateServerContext · blob version <span class="arg">*pbIn != 1</span> <span class="err">→ 0x0D</span>
+else → <b>SPCryptUnprotect</b>(<span class="arg">pbIn+0x14</span>,<span class="arg">cbIn-0x14</span>,<span class="arg">pEntropy</span>,<span class="arg">dwFlags</span>,<span class="arg">pvEntropy2</span>,<span class="arg">cbEntropy2</span>,<span class="arg">pbOut</span>,<span class="arg">szDescr</span>)
+the body runs as <b>lsass (SYSTEM)</b>; it impersonates the caller only around the steps that touch the caller's data, reverting after each
+[impersonated] <b class="dd">GetSpecifiedMasterKey</b>(<span class="arg">GUID from the blob</span>) → open the master-key file + fetch the credential <b>under the caller's token</b>   <small>→ masterkey_flow</small>
+&nbsp;&nbsp;↳ the real access gate is this token: which master-key file the caller may open  <span class="err">· denied → ACCESS_DENIED / NTSTATUS</span>
+root = SHA1(masterKey) · verify MAC = HMAC_root(macSalt ‖ ent ‖ ent2 ‖ body)
+&nbsp;&nbsp;<span class="err">memcmp mismatch → wrong key/entropy/tamper → no plaintext</span>
+if <span class="flag">VERIFY_PROTECTION</span> 0x40 and the blob's alg is weaker than the host default → status <b>0x91012</b> (advisory)
+<b>BCryptDecrypt</b>(cipherKey, IV=0) → strip block pad → plaintext
+if <span class="flag">AUDIT</span> 0x10 → <b>CPSAudit</b>: security audit event tagged with the caller's SID + logon id (LUID)
+<b class="dd">RtlEncryptMemory</b> ≡ SystemFunction040 → transit-encrypt the <b>plaintext</b> output   <small>→ rtl_encrypt_flow</small>
+reply over ALPC</div>
+</div>
+
+</div><!-- /lsass -->
+<div class="chan">↓ &nbsp; ALPC reply &nbsp; ↓</div>
+
+<div class="box">
+<div class="lbl">dpapi.dll · client resumes  <small>(one step, in code order)</small></div>
+<div class="mono"><b class="dd">RtlDecryptMemory</b> ≡ SystemFunction041 → undo the transit wrap of the output   <small>→ rtl_decrypt_flow</small>  <span class="err">· &lt; 0 → <b>0x1771</b></span>
+status 0 or 0x91012 → strip padding: pad = last byte  <span class="err">· pad==0 / pad&gt;8 / pad&gt;len → <b>0x0D</b></span>
+return TRUE iff status==0, or status==0x91012 with <span class="flag">VERIFY_PROTECTION</span> 0x40
+&nbsp;&nbsp;<small>0x91012 (needs-reprotect) is read back via GetLastError; the plaintext is produced either way</small>
+write plaintext → <span class="arg">pDataOut</span> · description → <span class="arg">*ppszDescr</span></div>
+</div>
+<div class="arrow">↓</div>
+
+<div class="box entry">
+<div class="lbl">application</div>
+<div class="mono"><span class="arg">pDataOut</span> ← plaintext  <small>(original data; description in *ppszDescr)</small></div>
+</div>
+
+<div class="legend">
+<div class="lbl">flags used above</div>
+<div class="mono"><span class="flag">PROMPT_ON_UNPROTECT</span> 0x1 / <span class="flag">PROMPT_ON_PROTECT</span> 0x2 / <span class="flag">PROMPT_STRONG</span> 0x8 — pPromptStruct bits; STRONG adds ent2
+<span class="flag">LOCAL_MACHINE</span> 0x4 — the blob is sealed under the machine master key (any local user can unprotect)
+<span class="flag">VERIFY_PROTECTION</span> 0x40 — advise (via 0x91012) if the blob's alg is weaker than host policy; still decrypts
+<span class="flag">AUDIT</span> 0x10 — emit the security audit event
+<span class="flag">SYSTEM</span> 0x20000000 — reserved; an ordinary caller setting it gets 0x57 (used only by internal, in-process calls)</div>
+</div>
+
+</div></body></html>

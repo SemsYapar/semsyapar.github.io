@@ -264,9 +264,9 @@ BOOL CryptProtectDataNoUI (
 )
 ```
 
-Gördüğünüz üzere tek fark entropy2 nin gelmesi o da duruma bağlı prompt dan geliyor yukarda söylediğim gibi. Peki bu fonksiyon ne yapıyor, dpapi.dll de tanımlı bu fonksiyon esas işlevi yerine getirecek olan dpapisrv.dll ile iletişim kurup rpc üzerinden şifrelenecek veriyi LSASS(Local Security Authority Subsystem Service) e aktarma görevini üstleniyor. Burda lsass ne buna girmicem ama Windows un kritik process lerinden biri olduğunu çok sıkı korunduğunu ve temel amacının bilgisayarınızdaki lokal oturum işlemlerini doğrulamak ve yönetmek olduğunu söyleyebilirim. Peki neden lsass katına çıktık. Çıktık evet çünkü lsass hassas bilgiler içeren bir process, kullanıcı masterkey leri gibi... Bizim masterkey ile işimiz var birader çünkü amacımız en baştan beri belirttiğimiz gibi sadece kullanıcının kendinin şifresini çözebildiği bir şifreleme hizmeti vermek. Masterkey lerde bunun için var. Şuan açıp bakabilirsiniz %APPDATA%\Microsoft\Protect dizini altında kullanıcı SID inizin olduğu dosyada masterkey leriniz bulunur bunları görmek için tabii explorer da sistem dosyalarını gör ayarını yapmanız lazım. Bu dosyalarda masterkey leriniz şifreli olarak tutulur ve bu şifrenin anahtarı da sizin kullanıcı parolanızdır. Tabii çok değişken durumlar var MSA ile oturum açmış olabilirsiniz, PIN ile oturum açmış olabilirsiniz, bir domain ağındaki bir kullanıcı olabilirsiniz biz bu seçenekleri şimdilik kapatalım. Local bir kullanıcı hesabınızın olduğu en basit senaryoyu konuşalım.  
+Gördüğünüz üzere tek fark entropy2 nin gelmesi o da duruma bağlı prompt dan geliyor yukarda söylediğim gibi. Peki bu fonksiyon ne yapıyor? dpapi.dll de tanımlı bu fonksiyon esas işlevi yerine getirecek olan dpapisrv.dll ile iletişim kurup rpc üzerinden şifrelenecek veriyi LSASS(Local Security Authority Subsystem Service) e aktarma görevini üstleniyor. Burda lsass ne buna girmicem ama Windows un kritik process lerinden biri olduğunu çok sıkı korunduğunu ve temel amacının bilgisayarınızdaki lokal oturum işlemlerini doğrulamak ve yönetmek olduğunu söyleyebilirim. Peki neden lsass katına çıktık. Çıktık evet çünkü lsass hassas bilgiler içeren bir process, kullanıcı masterkey leri gibi... Bizim masterkey ile işimiz var birader çünkü amacımız kullanıcıya sadece kendinin şifresini çözebildiği bir şifreleme hizmeti vermek. Masterkey lerde bunun için var. Şuan açıp bakabilirsiniz %APPDATA%\Microsoft\Protect dizini altında kullanıcı SID inizin olduğu dosyada masterkey leriniz bulunur (bunları görmek için explorer da sistem dosyalarını gör ayarını yapmanız lazım). Bu dosyalarda masterkey leriniz şifreli olarak tutulur ve bu şifrenin anahtarı da sizin kullanıcı parolanızdır. Tabii çok değişken durumlar var MSA ile oturum açmış olabilirsiniz, PIN ile oturum açmış olabilirsiniz, bir domain ağındaki bir kullanıcı olabilirsiniz biz bu seçenekleri şimdilik kapatalım. Local bir kullanıcı hesabınızın olduğu en basit senaryoyu konuşalım.  
 
-CryptProtectDataNoUI RPC ile ncalrpc:protected_storage e bağlanır bu lsass process inde çalışan dpapisrv.dll in dinlediği hattır. Sonra sırayla SystemFunction040 ve NdrClientCall3 fonksiyonlarını çalıştırır. NdrClientCall3 şifrelenecek veriyi dpapisrv nin ilgili interface inin hedef fonksiyonunu(operation number ile seçerek) gönderir ve cevabı dpapisrv den bekler. Ondan önce SystemFunction040 diye gözüken ama esas adı RtlEncryptMemory olan fonksiyon ise yola çıkacak plaintext imizi yani şifrelenecek verimizi yol için şifreler, bu şifreleme o oturum için bir şifrelemedir. RtlEncryptMemory veriyi şifrelemek için kernel deki ksecdd(Kernel Security Support Provider Interface) e gider gider, ksecdd de abisine yani CNG.sys(Cryptographic Next Generation) driver a gider. CNG her boot timeda rastgele oluşturulan anahtarları veriyi şifrelemek için kullanır.   
+CryptProtectDataNoUI RPC ile ncalrpc:protected_storage e bağlanır bu lsass process inde çalışan dpapisrv.dll in dinlediği hattır. Sonra sırayla SystemFunction040 ve NdrClientCall3 fonksiyonlarını çalıştırır. NdrClientCall3 şifrelenecek veriyi dpapisrv nin ilgili interface inin hedef fonksiyonuna (opnum->0) gönderir ve cevabı dpapisrv den bekler. Ondan önce SystemFunction040 diye gözüken ama esas adı RtlEncryptMemory olan fonksiyon ise yola çıkacak plaintext imizi yani şifrelenecek verimizi yol için şifreler, bu işlem için veri kernel deki ksecdd(Kernel Security Support Provider Interface) e gider, ksecdd de abisine yani CNG.sys(Cryptographic Next Generation) driver a gider. CNG her boot timeda rastgele oluşturulan anahtarları veriyi şifrelemek için kullanır.   
 ```c
 undefined8 CngEncryptMemoryInitialize(void){
   ...
@@ -277,24 +277,182 @@ undefined8 CngEncryptMemoryInitialize(void){
     if ((uVar1 != 0) && (uVar1 = SystemPrng(&local_38,0x10), uVar1 != 0)) {
   ...
 ```
-veri 8 er byte a bölünecek şekilde zaten SystemFunction040/RtlEncryptMemory e girmeden önce padding edilmişti. CNG şifrelenecek veri boyutu eğer 16 nın katı ise AES-256-CBC, 8 in katı ise 3DES kullanır. Bu detayları sizi çok sevdiğim için veriyorum bu arada.  
-Mekanizmanın nasıl çalıştığını kendi gözlerinizle görmek istiyorsanız RtlEncrypt/DecryptMemory fonksiyonlarının bu macerasını python kodu ile simüle ettiğim aşağıdaki kod ile oynayabilirsiniz. Tabii sisteminizdeki gerçek şifreli verileri çözmek için kernel memory nizden Yukardaki kodda gördüğünüz 3 SystemPrng çıktısını almanız lazım. WinDbg ile yapabilirsiniz. 
-<details markdown="1"> 
-<summary>cng_encdec_memory.py</summary>
-```python
-{% include kods/cng_encdec_memory.py %}
-```
-</details>  
 
-O yüzden şifrelenen veri bilgisayar kapatılıp açılınca artık geri çevrilemez. Kısa vaadeli şifrelemeler için kullanılır. Burda amacımız RPC verisini güvenli şekilde taşımak olduğu için kullanımı anlamlıdır. 4 adet şifreleme modu vardır. Bunlar: Same Process, Cross Process, Same Logon ve System dir.  
+O yüzden CngEncryptMemory ile şifrelenen veri bilgisayar kapatılıp açılınca geri çevrilemez çünkü yeni random anahtarlar oluşturulmuştur. RtlEncDec kısa vaadeli şifrelemeler için kullanılır. Burda amacımız RPC üzerinden şifrelenecek verimizi dpapisrv a güvenli şekilde taşımak olduğu için kullanımı anlamlıdır.  
+RtlEncDecMemory api lerinin 4 adet şifreleme modu vardır. Bunlar: Same Process, Cross Process, Same Logon ve System dir.  
 Same Process modu veriyi api yi çağıran process in kimliğinide kullanarak şifreler böylece sadece o process bu şifreyi çözebilir olur.  
 Cross Process veriyi şifrelerken ekstra anahtar kullanmaz o yüzden herkes çözebilir olur.  
 Same Logon veriyi Logon LUID ile şifreler böylece o oturumdaki o kullanıcını yetkisi ile çalışan process ler şifreyi çözebilir.  
-System ise adından da anlaşılacağı gibi veriyi sadece System kullanıcısının deşifre edebilmesini sağlar bunun için veriyi çözerken çözmek isteyen yani api yi çağıran process in token ine bakar. System token i değilse veriyi çözmez.  
+System ise adından da anlaşılacağı gibi veriyi sadece System kullanıcısının deşifre edebilmesini sağlar bunun için veriyi çözerken çözmek isteyen yani api yi çağıran thread in access token ine bakar. System token i değilse veriyi çözmez.  
 
-İyi anlatabildiysem bizim durumumuzda hangi şifreleme yöntemini kullanmamız daha doğru tahmin edebiliyor olmanız gerekiyor. Aslında gerekmiyor:D çünkü tatlı bir trick var. Cross Process en mantıklısı gibi gelecektir ama Same Logon kullanılıyor. Nasıl Same Logon lsass nasıl çözecek veriyi System kullanıcısı o dediğinizi duyar gibiyim. Olay şu ki. dpapisrv.dll içinde rpc çağrısını yapan process in token ine RpcImpersonateClient api si ile bürünüp öyle RtlDecryptMemory ile şifreli veriyi çözer. Sonrada bu veriyi masterkey ile şifreleyip geri isteyen process e iletir.  
+CNG şifrelenecek veri boyutu eğer 16 nın katı ise AES-128-CBC, 8 in katı ise 3DES kullanır. Sizin ekstra bir padding yapmanıza gerek yok veri 8 er byte a bölünecek şekilde zaten SystemFunction040/RtlEncryptMemory e girmeden önce CryptProtectDataNoUI de padding ediliyor. Bu detayları sizi çok sevdiğim için veriyorum bu arada.  
+Mekanizmanın nasıl çalıştığını kendi gözlerinizle görmek istiyorsanız RtlEncrypt/DecryptMemory fonksiyonlarının bu macerasını python kodu ile simüle ettiğim aşağıdaki kod ile oynayabilirsiniz. Tabii sisteminizdeki gerçek şifreli verileri çözmek için kernel memory nizden Yukardaki kodda gördüğünüz 3 SystemPrng çıktısını almanız lazım. Bu işi WinDbg ile bu çıktıların saklandığı offset leri dump layarak yapabilirsiniz. 
+```powershell
+PS C:\Users\sems\Desktop\codepy\os_crypt> python .\cng_encdec_memory.py encrypt --root 775fc4584823dcae043dca33853900a404de03c2e96af6fb --iv 0f91d1c3cf88ead4ec856938f6d694a6 --cross 7bc4ed1bdd86ab6697621434bd6f913f --text "selam" --scope same_logon
+[*] padded input: 73656c616d0000000000000000000000
+d79212e7c0022600c94b00f549c656bd
 
-Burda algılayışınızı netleştirmek için claude ile özene bezene hazırladığım birkaç diagramı sizle paylaşmayı uygun gördüm. Yazımın bu noktasına kadar değindiğim genel CryptProtect/UnprotectData zincirini ve bu zincirde spesifik olarak geçiş(transit) aşamasında kullanılan SystemFunction40 ve 41 i yani RtlEncDec fonksiyonlarını kernel akışları ile beraber gösteren diagramlar olacak bunlar.  
+PS C:\Users\sems\Desktop\codepy\os_crypt> python .\cng_encdec_memory.py decrypt --root 775fc4584823dcae043dca33853900a404de03c2e96af6fb --iv 0f91d1c3cf88ead4ec856938f6d694a6 --cross 7bc4ed1bdd86ab6697621434bd6f913f --hex d79212e7c0022600c94b00f549c656bd --scope same_logon
+73656c616d0000000000000000000000
+```
 
-<iframe src="/diags/rtl_encrypt_flow.html" width="100%" height="500px" style="border:none;"></iframe>
-<iframe src="/diags/rtl_decrypt_flow.html" width="100%" height="500px" style="border:none;"></iframe>
+RtlEncryptMemory ile şifrelenen veri RPC üzerinden dpapisrv deki hedef fonksina yani s_SSCryptProtectData ya gider. Burda önce yol için şifrelenmiş veri geri çözülecek sonrada esas şifreleme işlemi veriye uygulanacaktır. Geri çözme işlemi için basitçe RtlDecryptMemory çağırmak işe yaramaz çünkü veri dpapi.dll de  RtlEncryptMemory ile şifrelenirken SAME_LOGON moduyla şifrelendi. Yani sadece aynı kullanıcı yetkisi ile şifre çözülebilir. Amma ve lakin dpapi.dll bizi program process imizde çalıştı, dpapisrv ise System kullanıcısı yetkisi ile çalışır. Bu yüzden dpapisrv veriyi çözmeden önce RpcImpersonateClient api si ile istemcinin access token ine bürünür RtlDecryptMemory ile veriyi çözer sonrada hemen eski access token ine RevertToSelf ile kavuşur. İnce ama gerekli bir ara hamledir.  
+
+Artık veri şifrelenmeye hazır. Şifreleme algoritmasına burda girmeyi anlamlı bulmuyorum. Sadece algoritma için ne önemli ondan bahsetmek istiyorum. Bu daha öncede bahsettiğim masterkey, masterkey şifreli olarak tutulduğu yerden çıkarılıyor ve LSASS tarafından bu şifre çözülüyor çünkü LSASS de oturum açan kullanıcının giriş şifresinin hash leri var. Bu hash ler şifreli masterkey i çözmek ve şifrelemek için kullanılıyor böylece kullanıcı ile masterkey birbirine bağlanmış oluyor. Masterkey ile veri şifreleniyor. Şifreli veri aynı RPC hattı üzerinden istemciye dönüyor. İşte CryptProtectData böyle çalışıyor.  
+Beraber gerçekten sistemi doğru anlayıp anlamadığımızı test etmek için bu akışı python ile birlikte simüle edelim. Bu simülasyonda RtlEncDecMemory olmayacak çünkü biz veriyi gerçek anlamda RPC üzerinden LSASS e iletmicez. LSASS tarafında yada istemci tarafında uygulanan kriptolojik adımları taklit edicez. Kodlarda kullanılan tüm kütüphaneleri yazının sonunda bulabilirsiniz, buraları şişirmesin diye en sona koymaya karar verdim. İlk başta basitçe CryptProtectData yı çağırıp ondan dönen şifreli blob ı inceleyelim.  
+
+```powershell
+PS C:\Users\sems\Desktop\codepy\os_crypt> python .\dpapi_trigger.py protect --text "selam"
+01000000d08c9ddf0115d1118c7a00c04fc297eb010000009741565fe6816442aecf3e6f9d2b508300000000020000000000106600000001000020000000dc5d77387aa40da3e1bd16cc99192833ad16a1d52957637e6fbc5ef2b7f27e9a000000000e8000000002000020000000206d95ce9728b37e33d77c09acb1db8eac8a4198ddcbec13e5453d3233fb43c11000000010c9452cbadf6e380a1d7472fa7def014000000093a3655784e2a352863aea0975ce4750c4c1226adb924ddbd28389461c6459e4ae0e93fdf3a8c9e82704bd3455b44482fc26136993e8d8544e713884a3af0d39
+```
+
+dpapi_trigger.py CryptProtectDataNoUI API sini kullanarak verimizi şifreledi. Ve bize bir DPAPI blob u verdi. Bu blob un anatomisini inceleyelim şimdi.  
+
+```powershell
+PS C:\Users\sems\Desktop\codepy\os_crypt> python .\dpapi_protect.py parse-blob --blob 01000000d08c9ddf0115d1118c7a00c04fc297eb010000009741565fe6816442aecf3e6f9d2b508300000000020000000000106600000001000020000000dc5d77387aa40da3e1bd16cc99192833ad16a1d52957637e6fbc5ef2b7f27e9a000000000e8000000002000020000000206d95ce9728b37e33d77c09acb1db8eac8a4198ddcbec13e5453d3233fb43c11000000010c9452cbadf6e380a1d7472fa7def014000000093a3655784e2a352863aea0975ce4750c4c1226adb924ddbd28389461c6459e4ae0e93fdf3a8c9e82704bd3455b44482fc26136993e8d8544e713884a3af0d39
+DPAPI blob - 230 bytes
+  version        : 1
+  provider       : df9d8cd0-1501-11d1-8c7a-00c04fc297eb (DPAPI)
+  mk version     : 1
+  master-key GUID: 5f564197-81e6-4264-aecf-3e6f9d2b5083 - the master key that protects this blob
+  flags          : 0x00000000  (none)
+  description    : ''
+  cipher         : 0x6610  AES-256 (256 bit)
+  salt (32 B)    : dc5d77387aa40da3e1bd16cc99192833ad16a1d52957637e6fbc5ef2b7f27e9a
+  hmac key (0 B) : (empty)
+  hash           : 0x800e  SHA512 (512 bit)
+  mac salt (32 B): 206d95ce9728b37e33d77c09acb1db8eac8a4198ddcbec13e5453d3233fb43c1
+  ciphertext(16B): 10c9452cbadf6e380a1d7472fa7def01
+  MAC (64 B)     : 93a3655784e2a352863aea0975ce4750c4c1226adb924ddbd28389461c6459e4ae0e93fdf3a8c9e82704bd3455b44482fc26136993e8d8544e713884a3af0d39
+```
+
+Burda bizim için çok önemli bilgiler var bikere blob un DPAPI blob u olduğunu provider kısmındaki GUID den teyit etmiş oluyoruz. Bu blob u şifrelemek için kullanılan masterkey in versiyonunu ve masterkey in GUID ini görüyoruz ki bu GUID şifreyi çözmek için hangi masterkey i kullanmamız gerektiğini bulmamız açısından kritik. flags kısmı şimdilik boş çünkü ekstra bir flag vermedik. description kısmıda boş bu blob a ekleyebildiğimiz düz bir metin olabilirdi, blob u açıklamak için. Chromium da yukarda bahsettiğim en son tag ında bunların kullanıldığını görebilirsiniz:  
+```cpp
+  result = ::CryptProtectData(
+      /*pDataIn=*/&input,
+      /*szDataDescr=*/
+      base::SysUTF8ToWide(
+          base::StrCat(
+              {version_info::GetProductName(),
+               version_info::IsOfficialBuild() ? "" : " (Developer Build)"}))
+          .c_str(),
+      /*pOptionalEntropy=*/nullptr,
+      /*pvReserved=*/nullptr,
+      /*pPromptStruct=*/nullptr, /*dwFlags=*/CRYPTPROTECT_AUDIT,
+      /*pDataOut=*/&output);
+```
+
+description da ürün versiyonu var, flag olarak AUDIT flag ı özel bir ETW logu tutuyor böylece description filtrelenerek ETW de bu spesifik kod bloğu ne sıklıkla çağrılmış Chromium bunu denetleyebiliyor.  
+Cipher ve verify kısımlarını geçiyorum en altta da masterkey imizle şifrelenmiş veriyi görüyorsunuz. Şimdi çok havalı bir şey yapıcaz ve hiçbir Windows API si kullanmadan bu blob u kendimi çözmeye çalışıcaz. Bunun için öncelikle hedef masterkey e ulaşmamız lazım. Python process ini kendi local hesap kullanıcımla çalıştırdığım için kullanılan masterkey in benim appdata mda olması gerekiyor hemen bakalım.  
+"C:\Users\sems\AppData\Roaming\Microsoft\Protect\S-1-5-21-2551214374-3482223478-886197384-1001" bu dosya yoluna baktığımda burda bissürü stored masterkey file olduğunu görüyorum:  
+
+![stored_masterkeys](/pictures/chromium/stored_masterkeys.png)
+
+Bu dosyaların herbirinde farklı bir masterkey im var, birden fazla dosya ve masterkey olmasının sebebi masterkey lerin işletim sistemi tarafından belli süre aralıkları yada belli event lere bağlı olarak değiştirilmesi. Siz veriyi şifrelemek istediğinizde her zaman güncel masterkey i kullanır CryptProtectData onunda adı "Preffered" isimli dosyada tutuluyor. Lakin eski bir masterkey ile şifrelenmiş olabileceğinden CryptUnprotectData blob daki mkguid e bakıp o masterkey ile şifreyi çözmeye çalışır. Eğer kullanıcı parolanızı değiştirirseniz tüm stored masterkey file larınız önce eski şifreniz ile çözülür sonra yeni şifreniz ile tekrar şifrelenir tabii bazen bu işlem aksayabilir o durumlarda da CREDHIST adında bir dosyaya başvurursunuz. Bu dosyada bir önceki parolanız bir sonraki parolanıza bağlanır. Yani şimdiyi biliyorsanız bir adım önceki parolanızı de aslında biliyor olursunuz. Tabii parolarınız hiçbir zaman raw durmaz parola hash lerinden bahsediyorum parola derken zaten stored masterkey file larda parola larla değil parola hash leri ile şifrelenir bu akıldan çıkmasın. Esas parolanızı Windows hiçbir zaman ortalıkta çıplak tutmaz. Blob da gördüğümüz mkguid hemen gözüme çarpıyor. Şimdi biz kendimize gereken masterkey i çıkartalım bakalım:  
+```powershell
+PS C:\Users\sems\Desktop\codepy\os_crypt> python .\masterkey.py "C:\Users\sems\AppData\Roaming\Microsoft\Protect\S-1-5-21-2551214374-3482223478-886197384-1001\5f564197-81e6-4264-aecf-3e6f9d2b5083" --password 442027 --sid S-1-5-21-2551214374-3482223478-886197384-1001
+[*] opened with: current password
+[*] master key : c684a7de467f3f71cabd92f399b634eff0428b330b8aa99bef2c84a518664941ca00d2cb3a24e5e71066e1c430fdfdbe8c6b2e9e2daf2b21d9cb52f017d7e618
+```
+
+İşte bu kadar:D argümanlardan biri local hesabımın şifresi diğeri de SID yani kullanıcı adıma(sems) işletim sisteminin verdiği sayısal sabit değer. Bu ikisi şifreyi çözmek için kullanılıyor. Stored masterkey file de masterkey in farklı şekillerde şifrelenmiş versiyonları mevcut biz local hesap bilgilerimizle çözebildiğimiz masterkey_blob u çözdük ama tek seçenek bu değil. backupkey ilede çözebilirdik yada domainkey ile. Yani bu file da aynı masterkey 3 farklı şekilde şifreleniyor. Ne yazıkki benim tool şimdilik sadece birisi ile çözüm yapabiliyor.  
+
+Artık elimizde masterkey olduğuna göre dpapi_trigger ile şifrelediğimiz veriyi manuel olarak çözebiliriz. dpapi_protect bu işi yapacak.  
+```powershell
+PS C:\Users\sems\Desktop\codepy\os_crypt> python .\dpapi_protect.py unprotect --blob 01000000d08c9ddf0115d1118c7a00c04fc297eb010000009741565fe6816442aecf3e6f9d2b508300000000020000000000106600000001000020000000dc5d77387aa40da3e1bd16cc99192833ad16a1d52957637e6fbc5ef2b7f27e9a000000000e8000000002000020000000206d95ce9728b37e33d77c09acb1db8eac8a4198ddcbec13e5453d3233fb43c11000000010c9452cbadf6e380a1d7472fa7def014000000093a3655784e2a352863aea0975ce4750c4c1226adb924ddbd28389461c6459e4ae0e93fdf3a8c9e82704bd3455b44482fc26136993e8d8544e713884a3af0d39 --master-key c684a7de467f3f71cabd92f399b634eff0428b330b8aa99bef2c84a518664941ca00d2cb3a24e5e71066e1c430fdfdbe8c6b2e9e2daf2b21d9cb52f017d7e618
+[*] mac_ok: True  descr: 
+[*] plaintext (5 B): 73656c616d
+selam
+```
+
+Tabii başka yollarda var. Bildiğiniz gibi bilgisayarımızdaki tüm kullanıcılar bildiğimiz anlamda parola ya sahip değiller. Mesela System kullanıcısı, o bir veriyi şifrelemek istediğinde ne oluyor dersiniz? Yada Local Machine. Bunlar nasıl DPAPI yi kullanıyor? Çözüm şöyle geliştirilmiş. LSASS da tutulan kritik bir bilgi daha var. Buna DPAPI_SYSTEM deniliyor. 44 byte lık bir veri bu. ilk 4 byte versiyon sonraki 20 byte ı machine sırrı diğer 20byte ı user sırrı diye geçiyor. machine sırrı benim gördüğüm kadarıyla sadece Local Machine nin masterkey leri için kullanılıyor user sırrı ise parolası olmayan bir takım kullanıcılar için System gibi. Kafalar çok karışmadan bir deney daha yapalım. Öncelikle System kullanıcı olarak CryptProtectData yı tetikleyelim.  
+
+Bunun için sysinternals tool larından biri olan PsExec i kullanıcam -s argümanı system kullanıcısının komut çalıştırmasını sağlıyor.  
+```cmd
+C:\Users\sems\Desktop\codepy\os_crypt>psexec -s python "C:\Users\sems\Desktop\codepy\os_crypt\dpapi_trigger.py" protect --text "ben sistemim"
+
+PsExec v2.43 - Execute processes remotely
+Copyright (C) 2001-2023 Mark Russinovich
+Sysinternals - www.sysinternals.com
+
+
+01000000d08c9ddf0115d1118c7a00c04fc297eb01000000bdc9d9bffd04e841a8d9168b8a5f4d95000000000200000000001066000000010000200000001b97fdf3759fd26dfdc179f99c51a98d37a7327278b5f1d4c05db22a3d3f2dc3000000000e80000000020000200000006c2394d7cedd166e0a0644600901672cb9eb885fbd05c20b4fd931e742e133ba1000000002ca6441d5aea2309ee4fad2ab83f810400000002d296c6be1a553e73994a736798a7ac1a2eaa48b0cfb740b9b1bf0a3b8eb54665d943146d890e1d6bece9e94d326d83be149568fe984567ae49d0594c8b813f2
+```
+
+Bu blob artık System kullanıcısının masterkey i ile şifrelendi. Bunu doğrulamak için blob un mkguid ini analiz edelim.  
+
+```powershell
+PS C:\Users\sems\Desktop\codepy\os_crypt> python .\dpapi_protect.py parse-blob --blob 01000000d08c9ddf0115d1118c7a00c04fc297eb01000000bdc9d9bffd04e841a8d9168b8a5f4d95000000000200000000001066000000010000200000001b97fdf3759fd26dfdc179f99c51a98d37a7327278b5f1d4c05db22a3d3f2dc3000000000e80000000020000200000006c2394d7cedd166e0a0644600901672cb9eb885fbd05c20b4fd931e742e133ba1000000002ca6441d5aea2309ee4fad2ab83f810400000002d296c6be1a553e73994a736798a7ac1a2eaa48b0cfb740b9b1bf0a3b8eb54665d943146d890e1d6bece9e94d326d83be149568fe984567ae49d0594c8b813f2
+DPAPI blob - 230 bytes
+  version        : 1
+  provider       : df9d8cd0-1501-11d1-8c7a-00c04fc297eb (DPAPI)
+  mk version     : 1
+  master-key GUID: bfd9c9bd-04fd-41e8-a8d9-168b8a5f4d95 - the master key that protects this blob
+  flags          : 0x00000000  (none)
+  description    : ''
+  cipher         : 0x6610  AES-256 (256 bit)
+  salt (32 B)    : 1b97fdf3759fd26dfdc179f99c51a98d37a7327278b5f1d4c05db22a3d3f2dc3
+  hmac key (0 B) : (empty)
+  hash           : 0x800e  SHA512 (512 bit)
+  mac salt (32 B): 6c2394d7cedd166e0a0644600901672cb9eb885fbd05c20b4fd931e742e133ba
+  ciphertext(16B): 02ca6441d5aea2309ee4fad2ab83f810
+  MAC (64 B)     : 2d296c6be1a553e73994a736798a7ac1a2eaa48b0cfb740b9b1bf0a3b8eb54665d943146d890e1d6bece9e94d326d83be149568fe984567ae49d0594c8b813f2
+```
+
+masterkey GUID i benim Protect dizinimde olan hiçbir stored masterkey file dosyasının ismi ile uyuşmuyor. Şimdi sistem in Protect dizinine gidelim.  
+"C:\WINDOWS\System32\Microsoft\Protect\S-1-5-18\User":  
+
+![system_protect](/pictures/chromium/system_protect.png)
+
+Neden bu dizin diye bana sormayın adamlar böyle karar vermiş yoksa System in AppData sının burası olmadığını bende biliyorum. Yapacak bir şey yok.  Gördüğünüz gibi "df9d8cd0-1501-11d1-8c7a-00c04fc297eb" mkguid imizi bulduk. Şimdi onu kırmaya çalışıcaz ama elimizde az önce bahsettiğim DPAPI_SYSTEM verisi yok. Aslında var. Ama yönetici yetkimiz olabilirse var. Bunun için tabii birçok farklı yöntem var. Ben benim kullandığımı göstericem size.  
+
+```cmd
+C:\Users\sems\Desktop\codepy\os_crypt>reg save HKLM\SYSTEM   SYSTEM
+The operation completed successfully.
+
+C:\Users\sems\Desktop\codepy\os_crypt>reg save HKLM\SECURITY SECURITY
+The operation completed successfully.
+```
+
+bu registry hive lerini çıkartıyoruz, işte burda yönetici yetkisi lazım sonrası gene normal kullanıcı ile oluyor. Çıkarttığımız hive leri lsa_secrets.py mize atıyoruz oda crawl eyliyor:  
+```powershell
+PS C:\Users\sems\Desktop\codepy\os_crypt> python .\lsa_secrets.py --security .\SECURITY --system .\SYSTEM
+[*] bootkey : 5484c4f3171a92627a7e00d95ac7d54c
+[*] LSA key : db6d52d9ad56df51a2ae3db0a98a3a93fc30932e6fbb9b628c17c96fa909cc87
+
+=== DPAPI_SYSTEM  (44 bytes) ===
+   0100000088def18d93157031dd28063c04a7a735efbc1e923af337e1aa410f05c3cb5d1c0a671bb12d2450f7
+   version  : 1
+   machine  : 88def18d93157031dd28063c04a7a735efbc1e92
+   user     : 3af337e1aa410f05c3cb5d1c0a671bb12d2450f7
+   -> DPAPI_SYSTEM_HEX = 0100000088def18d93157031dd28063c04a7a735efbc1e923af337e1aa410f05c3cb5d1c0a671bb12d2450f7
+
+=== NL$KM  (64 bytes) ===
+   1ee70d0388034200662cbf7f69562d71412b3d72bdae1765ae279be5e1a744769ac5d313bfc000e224b46ab1e7f4bb89da5905c21f146d1b31c294b08b5185c3
+```
+
+Burda çok fazla ağız sulandırıcı veri var ama bize şimdilik DPAPI_SYSTEM_HEX yeter. Onu alıyoruz ve stored masterkey file ımızın şifresini şu şekilde çözüyoruz:  
+```powershell
+PS C:\Users\sems\Desktop\codepy\os_crypt> python .\masterkey.py "C:\WINDOWS\System32\Microsoft\Protect\S-1-5-18\User\bfd9c9bd-04fd-41e8-a8d9-168b8a5f4d95" --dpapi-system 0100000088def18d93157031dd28063c04a7a735efbc1e923af337e1aa410f05c3cb5d1c0a671bb12d2450f7    
+[*] opened with: DPAPI_SYSTEM user half                                                                                            
+[*] master key : a7d468f1e092a9b268860f4b5ee99151765652a364612d5b348f6ce5e887494b07faed5552e6aff7df80588e41f7e6cc4f09fa9cbfc53b8b5254b35598687d2d
+```
+
+İşte bu kadar! Şimdi System kullanıcısının masterkey i ile onun blob unu rahatlıkla çözebiliriz.  
+```powershell
+PS C:\Users\sems\Desktop\codepy\os_crypt> python .\dpapi_protect.py unprotect --blob 01000000d08c9ddf0115d1118c7a00c04fc297eb01000000bdc9d9bffd04e841a8d9168b8a5f4d95000000000200000000001066000000010000200000001b97fdf3759fd26dfdc179f99c51a98d37a7327278b5f1d4c05db22a3d3f2dc3000000000e80000000020000200000006c2394d7cedd166e0a0644600901672cb9eb885fbd05c20b4fd931e742e133ba1000000002ca6441d5aea2309ee4fad2ab83f810400000002d296c6be1a553e73994a736798a7ac1a2eaa48b0cfb740b9b1bf0a3b8eb54665d943146d890e1d6bece9e94d326d83be149568fe984567ae49d0594c8b813f2 --master-key a7d468f1e092a9b268860f4b5ee99151765652a364612d5b348f6ce5e887494b07faed5552e6aff7df80588e41f7e6cc4f09fa9cbfc53b8b5254b35598687d2d
+[*] mac_ok: True  descr: 
+[*] plaintext (12 B): 62656e2073697374656d696d
+ben sistemim
+```
+
+Bunun birde local machine tarafı var. Orda ekstra olarak LOCAL_MACHINE flag ını da vermemiz gerekiyor şifrelerken ve çözerken çünkü LOCAL_MACHINE direkt bilgisayarın kendisini ifade ediyor bir yetki seviyesi yok flag yetiyor. O flag ı gören DPAPI de bu sefer machine sırrı ile veriyi şifreliyor tabii local machine nin masterkey i ile ki oda System masterkeylerinin olduğu dizinin bir arkasında(C:\WINDOWS\System32\Microsoft\Protect\S-1-5-18)  
+
+Bu yazıda DPAPI nin CryptProtect/UnprotectData API lerini elimden geldiğince irdeleyip size anlatmaya çalıştım. Daha çok detay var tabii ama sanırım şimdilik bu kadar yeter. Altta diagramları ve kodları bulabilirsiniz. Selametle kalın.
+
+[cng_encdec_memory.py](/_includes/kods/cng_encdec_memory.py)  
+[dpapi_protect.py](/_includes/kods/dpapi_protect.py)  
+[dpapi_trigger.py](/_includes/kods/dpapi_trigger.py)  
+[guidtool.py](/_includes/kods/guidtool.py)  
+[lsa_secrets.py](/_includes/kods/lsa_secrets.py)  
+[masterkey.py](/_includes/kods/masterkey.py)  

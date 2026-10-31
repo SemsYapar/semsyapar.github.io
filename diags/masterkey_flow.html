@@ -1,0 +1,92 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:#fff;color:#1f2430;padding:34px 40px 48px}
+.wrap{max-width:900px;margin:0 auto}
+h1{font-size:25px;font-weight:800;letter-spacing:-.3px;margin-bottom:6px}
+.sub{font-size:13.5px;color:#64707f;margin-bottom:24px;line-height:1.55}
+.box{border:1.5px solid #c9d2dc;border-radius:11px;padding:14px 18px;background:#fff;margin:0}
+.lbl{font-size:10.5px;font-weight:700;letter-spacing:.7px;color:#7a8794;text-transform:uppercase;margin-bottom:7px}
+.mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.6px;line-height:1.75;color:#273142;white-space:pre-wrap}
+.mono b{font-weight:700;color:#12325b}
+.arg{color:#12325b;font-weight:700}
+.flag{color:#8257c5;font-weight:700}
+.desc{font-size:12.4px;color:#5f6b7a;line-height:1.5;margin-top:6px}
+.arrow{text-align:center;color:#9aa5b1;font-size:17px;margin:7px 0}
+.entry{background:#eef3fc;border-color:#aebfdc}.entry .lbl{color:#2f55a4}
+.core{border:2px solid #3a9b6e;border-radius:11px}.core .lbl{color:#1f7a4d}
+.err{color:#c0392b}.mono .err b{color:#a5281b}
+.legend{border:1px solid #d9e0e8;border-radius:10px;background:#f7f9fb;padding:12px 16px;margin-top:22px}
+.legend .lbl{color:#7a8794}.legend .mono{font-size:12px;line-height:1.8}
+table{border-collapse:collapse;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.8px;margin-top:4px}
+td,th{border:1px solid #dde3ea;padding:3px 8px;text-align:left}th{background:#f1f4f8;color:#44505f}
+small{color:#8793a0}
+</style></head><body><div class="wrap">
+
+<h1>GetMasterKey — acquiring the 64-byte master key</h1>
+<div class="sub">The GetPreferredMasterKey / GetSpecifiedMasterKey step of the protect and unprotect diagrams, expanded. Inside lsass/dpapisrv: from the account's credential to the master key that actually (de)crypts data. Runs only on a cache miss.</div>
+
+<div class="box entry">
+<div class="lbl">called by SPCryptProtect / SPCryptUnprotect</div>
+<div class="mono"><b>GetPreferredMasterKey</b> (protect → the active key) · <b>GetSpecifiedMasterKey</b>(<span class="arg">GUID from the blob</span>) (unprotect)
+both converge on <b>GetMasterKey</b>; only where the GUID comes from differs</div>
+</div>
+<div class="arrow">↓</div>
+
+<div class="box">
+<div class="lbl">caller identity + storage area · CPSGetUserStorageArea</div>
+<div class="mono"><b>CPSImpersonateClient</b> → act as the caller → the store path is &lt;base&gt;\Microsoft\Protect\&lt;SID&gt;\
+the <b>Preferred</b> file names the current GUID (protect); unprotect already has the GUID from the blob</div>
+<table>
+<tr><th>scope</th><th>path (state separation off)</th></tr>
+<tr><td>user</td><td>%APPDATA%\Microsoft\Protect\&lt;userSID&gt;</td></tr>
+<tr><td><span class="flag">LOCAL_MACHINE</span></td><td>%WinDir%\System32\Microsoft\Protect\S-1-5-18</td></tr>
+<tr><td>SYSTEM</td><td>%WinDir%\System32\Microsoft\Protect\S-1-5-18<b>\User</b></td></tr>
+<tr><td>LocalService / NetworkService</td><td>…\System32\Microsoft\Protect\S-1-5-19 / S-1-5-20</td></tr>
+<tr><td>virtual (0x5a/0x5b)</td><td>&lt;ProfileList root&gt;\AppData\Roaming\Microsoft\Protect\&lt;SID&gt;</td></tr>
+</table>
+<div class="desc">The only path difference between LOCAL_MACHINE and SYSTEM is the <b>\User</b> suffix. The System32 stores do not roam.</div>
+</div>
+<div class="arrow">↓</div>
+
+<div class="box">
+<div class="lbl">pre-key (DP_KEK) — the credential that unlocks the file</div>
+<div class="mono">user              pre_key = <b>HMAC-SHA1</b>(SHA1(password), SID)      <small>[CPSGetDerivedCredential]</small>
+SYSTEM / service  pre_key = <b>DPAPI_SYSTEM half, used as-is</b>          <small>[CPSGetSystemCredential]</small>
+fixed virtual acct pre_key = <b>HMAC-SHA1</b>(DPAPI_SYSTEM half, account name)</div>
+<div class="desc">The password hash comes from lsass — the plaintext never arrives. No-password accounts use a 20-byte half of the <b>DPAPI_SYSTEM</b> LSA secret (machine half for <span class="flag">LOCAL_MACHINE</span>, user half otherwise); only the fixed virtual accounts (kinds 0x5a/0x5b/0x63) add an HMAC over the account name. The pre-key feeds the KDF below, it is not applied to the master key directly.</div>
+</div>
+<div class="arrow">↓</div>
+
+<div class="box">
+<div class="lbl">GetMasterKey — read the file, try credentials in order (first success wins)</div>
+<div class="mono"><b>ReadMasterKey</b> → split MASTERKEY_STORED into: <b>MasterKey</b> · BackupKey · CredHist · DomainKey
+try <b>DecryptMasterKeyFromStorage</b> with each credential until the MAC matches:
+&nbsp;&nbsp;1. the caller's current credential            <small>(ComputeMasterKeyUserEncryptionKey)</small>
+&nbsp;&nbsp;2. other identities for the account           <small>(GetMasterKeyUserEncryptionKey, alternate SIDs)</small>
+&nbsp;&nbsp;3. old passwords from the <b>CredHist</b> chain   <small>(after a password change)</small>
+if none match → <b>RestoreMasterKey</b>: decrypt BackupKey with the domain/local backup key (RSA)
+<span class="err">if that also fails → master key not recovered</span></div>
+</div>
+<div class="arrow">↓ <small>DecryptMasterKeyFromStorage → DecryptMasterKeyToMemoryEx</small></div>
+
+<div class="box">
+<div class="lbl">DecryptMasterKeyToMemoryEx — the actual unseal</div>
+<div class="mono">① <b>PKCS5DerivePBKDF2</b>(<span class="arg">pre_key</span>, <span class="arg">salt</span>, <span class="arg">rounds</span>) → key ‖ iv   <small>(XOR-feedback variant, not textbook PBKDF2)</small>
+② <b>AES-CBC decrypt</b>(key, iv) → hmacSalt ‖ hmac ‖ masterKey(64)
+③ verify HMAC  → match: the 64-byte master key   ·   mismatch: wrong/old credential → caller tries the next one</div>
+</div>
+<div class="arrow">↓</div>
+
+<div class="box entry">
+<div class="lbl">cache + return</div>
+<div class="mono"><b>InsertMasterKeyCache</b>(LUID + GUID) → later calls skip the file path
+return the 64-byte master key → SPCryptProtect / SPCryptUnprotect</div>
+</div>
+
+<div class="legend">
+<div class="lbl">flags that reach this diagram</div>
+<div class="mono"><span class="flag">LOCAL_MACHINE</span> 0x4 — machine master key: the DPAPI_SYSTEM <b>machine</b> half, store under S-1-5-18
+<span class="flag">SYSTEM</span> 0x20000000 — SYSTEM-context scope: store under S-1-5-18\User; reachable only with the SYSTEM token</div>
+</div>
+
+</div></body></html>
