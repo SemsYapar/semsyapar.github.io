@@ -206,7 +206,7 @@ Chromium un en güncel versiyonuna bakarsak ki benim bu yazıdaki referans tag �
 - dpapi crytprotectdata ile şifrelenen key base64encode lanıp "User Data" altında "Local State" dosyasında os_crypt.encrypted_key entry sinde tutuluyor, cryptunprotectdata ile çözülüyor. (browser/dpapi_key_provider.cc:GetKeyInternal, DecryptKeyWithDPAPI)
 - Bu key ile şifrelenen verilerin başında "v10" prefix i var, şifrelenen verilerde base64encode lanıyor. [components/os_crypt/async/common/encryptor.cc:Encryptor::DecryptData]
 - şifreleme yöntemi aes-256-gcm [components/os_crypt/async/common/encryptor.cc:Encryptor::Key::Encrypt]
-- daha önceden şifrelenen bir veri o chrome runtime ında encryption için tercih edilen provider değilse (provider dan kasıt v10 ve v20) veri ile birlikte gelen should_reencrypt flag ı tiklenir bu flag ı kontrol eden kod parçaları veriyi tekrar şifreler. Örnek (chrome/browser/enterprise/encryption/cache_encryption_provider_impl.cc):  
+- daha önceden şifrelenen bir veri deşifrelenirken o chrome runtime ında şifreleme için tercih edilmiş provider ile şifrelenmemişse  (provider dan kasıt v10 ve v20) veri ile birlikte gelen should_reencrypt flag ı tiklenir, bu flag ı kontrol eden kod parçaları veriyi güncel provider ile tekrar şifreler. Yani tercih edilen provider v20 ise ama veri v10 ile çözülmüşse, bu tarz yerlerde geri v20 ile şifreleniyor çözüldükten hemen sonra. Örnek (chrome/browser/enterprise/encryption/cache_encryption_provider_impl.cc):  
 ```cpp
 ...
 os_crypt_async::Encryptor::DecryptFlags flags;
