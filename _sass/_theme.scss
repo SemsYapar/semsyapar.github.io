@@ -1,26 +1,25 @@
 // ======================================================================
-//  TEMA AYARLARI: görünümü değiştirmek için çoğunlukla sadece burayı düzenle.
-//  Tek tema: sıcak kâğıt tonu, serif yazı, rahat okuma için geniş satır aralığı.
+//  TEMA AYARLARI: Sıcak, Dostane ve Rahat Okuma (Cream & Maple)
 // ======================================================================
 :root {
   color-scheme: light;
 
-  --bg:           #f6eedd;   // sayfa (eski kitap kâğıdı)
-  --bg-soft:      #ede2c9;   // satır içi kod, tablo şeridi
-  --border:       #d9cba9;
-  --text:         #3b3128;   // gövde yazısı
-  --text-strong:  #25190f;   // başlıklar
-  --muted:        #6d5e49;   // tarih, alt yazı
-  --accent:       #9a4a22;   // bağlantılar
-  --accent-hover: #6f3010;
-  --selection:    rgba(154, 74, 34, 0.20);
+  --bg:           #fdfbf7;   // Taze, tüy gibi hafif krem kâğıt
+  --bg-soft:      #f3ebd9;   // Satır içi kod, kartlar, hafif vurgulu alanlar
+  --border:       #e8dbc3;   // Yumuşak, göze batmayan sınır çizgisi
+  --text:         #2d2723;   // Sıcak koyu çikolata (Siyah kadar sert değil, çok daha rahat okunur)
+  --text-strong:  #181310;   // Derin, belirgin başlıklar
+  --muted:        #7c6f64;   // Tarih, ikincil detaylar (yumuşak toprak tonu)
+  --accent:       #d96b27;   // Dostane, enerjik tarçın / sıcak turuncu
+  --accent-hover: #b35011;   // Etkileşimde derinleşen tarçın
+  --selection:    rgba(217, 107, 39, 0.18);
 
-  --code-block-bg: #2a231c;  // sıcak koyu kahve, kâğıdın üstünde sert durmaz
+  --code-block-bg: #211c18;  // Koyu çikolata-kahve kod bloğu (arka planla uyumlu sıcak koyu ton)
 
-  --font-body: Charter, "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-  --font-size: 19px;
-  --line-height: 1.75;
-  --content-width: 700px;
-  --radius: 6px;
+  --font-body: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-size: 18px;
+  --line-height: 1.7;
+  --content-width: 720px;
+  --radius: 10px;            // Dostane hissi artıran hafif yuvarlatılmış köşeler
 }
