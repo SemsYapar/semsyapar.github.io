@@ -5,7 +5,6 @@ lang: tr
 url: "https://semsyapar.github.io"
 baseurl: ""
 author: Sems
-timezone: Europe/Istanbul
 
 # Tema artık reponun içinde (_layouts, _includes, _sass). `theme:` YOK, bilerek.
 plugins:
@@ -15,8 +14,3 @@ plugins:
 # Üst menüde görünecek sayfalar (sırayla)
 header_pages:
   - about.markdown
-
-# Alt kısımdaki bağlantılar
-links:
-  - name: GitHub
-    url: https://github.com/SemsYapar
