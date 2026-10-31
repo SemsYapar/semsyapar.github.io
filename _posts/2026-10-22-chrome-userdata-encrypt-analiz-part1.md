@@ -15,7 +15,8 @@ Chromium, kullanıcıların tarayıcıyı kullanırken isteyerek yada istemeyere
 * History - gezinme geçmişi, indirmeler (SQLite, şifresiz).
 * Bookmarks - yer imleri (JSON, şifresiz).
 * Preferences - profil ayarları (JSON, şifresiz).
-* Local State Genel tarayıcı ayarları, v10 ve v20 anahtarları şifreli olarak burda tutuluyor (JSON, şifresiz).
+* Local State Genel tarayıcı ayarları, v10 ve v20 anahtarları şifreli olarak burda tutuluyor (JSON, şifresiz).  
+
 Ve daha başka bir sürü ıvır zıvır, her birinin yanında şifreli ve şifresiz ibaresini görüyorsunuz bu şuan güncel 159.0.8129.1 github tagında ki durum. Ben yazıyı yazdıktan sonra daha neler eklenir çıkarılır bilmem. Şifreli demek o dosyalardaki verilerin şifreli olarak tutulduğu anlamına geliyor ki bu yazıda ilgileneceğimiz konu tam olarak bu.  
 
 Şimdi, elimizde ne olduğuna bakalım:  
