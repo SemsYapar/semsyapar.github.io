@@ -456,7 +456,7 @@ Bunun birde local machine tarafı var. Orda ekstra olarak LOCAL_MACHINE flag ın
 Bu yazıda DPAPI nin CryptProtect/UnprotectData API lerini elimden geldiğince irdeleyip size anlatmaya çalıştım. Daha çok detay var tabii ama sanırım şimdilik bu kadar yeter. Altta diagramları ve kodları bulabilirsiniz. Selametle kalın.
 
 KODLAR
-https://github.com/SemsYapar/DPAPIScripts
+<https://github.com/SemsYapar/DPAPIScripts>
 
 DİAGRAMLAR  
 [cryptprotect_chain](/diags/cryptprotect_chain.html)  
