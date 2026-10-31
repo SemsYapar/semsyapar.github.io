@@ -367,6 +367,7 @@ PS C:\Users\sems\Desktop\codepy\os_crypt> python .\dpapi_protect.py unprotect --
 [*] plaintext (5 B): 73656c616d
 selam
 ```
+İsterseniz aynı işlemi entropy1 ve entropy2 argümanları ile yapadabilirsiniz, öyle yaparsanız çözerken entropy girdilerinide dpapi_protect e vermeniz lazım yoksa veri çözülemez. Description da verebilirsiniz. kafanıza göre.  
 
 Tabii başka yollarda var. Bildiğiniz gibi bilgisayarımızdaki tüm kullanıcılar bildiğimiz anlamda parola ya sahip değiller. Mesela System kullanıcısı, o bir veriyi şifrelemek istediğinde ne oluyor dersiniz? Yada Local Machine. Bunlar nasıl DPAPI yi kullanıyor? Çözüm şöyle geliştirilmiş. LSASS da tutulan kritik bir bilgi daha var. Buna DPAPI_SYSTEM deniliyor. 44 byte lık bir veri bu. ilk 4 byte versiyon sonraki 20 byte ı machine sırrı diğer 20byte ı user sırrı diye geçiyor. machine sırrı benim gördüğüm kadarıyla sadece Local Machine nin masterkey leri için kullanılıyor user sırrı ise parolası olmayan bir takım kullanıcılar için System gibi. Kafalar çok karışmadan bir deney daha yapalım. Öncelikle System kullanıcı olarak CryptProtectData yı tetikleyelim.  
 
