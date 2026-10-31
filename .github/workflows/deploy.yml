@@ -13,13 +13,15 @@ jobs:
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.2'
-          bundler-cache: true
+          bundler-cache: false
+
+      - name: Install dependencies & create lock file
+        run: |
+          bundle install
 
       - name: Build with Jekyll
         run: |
           bundle exec jekyll build
-        env:
-          JEKYLL_ENV: production
 
       - uses: actions/upload-pages-artifact@v4
         with:
