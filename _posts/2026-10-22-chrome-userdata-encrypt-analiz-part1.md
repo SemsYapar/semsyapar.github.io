@@ -231,6 +231,9 @@ Tamam veriler AES-256-GCM key ile şifreleniyor, veriyi şifreleyen key ise bir 
 
 ## Windows CryptProtect/UnprotectData tersine mühendisliği
 
+Şifreleme yolunun özet akışı şu şekilde:  
+CryptProtectData (input validasyonu ve isteğe bağlı kullanıcıya onay veya ekstra girdi prompt u) -> CryptProtectDataNoUI(veriyi RPC aktarımı esnasında şifrelemek için RtlEncryptMemory, RPC hattı üzerinden dpapisrv nin s_SSCryptProtectData fonksiyonuna teslim) -> s_SSCryptProtectData(kontrol ve kurulum, veriyi esas şifreleme fonksiyonuna iletme) -> SPCryptProtect(RtlDecryptMemory ile veriyi çözme sonra masterkey ile şifreleme) -> (şifrelenen veri geri döner)
+
 Encryption zincirinden başlayalım zaten diğeride onun simetrik tersi olacak. İlk hedef crypt32.dll indeki CryptProtectdata fonksiyonu. Bu fonksiyon key i şifrelemek için kullandığımız fonksiyon.  
 Yaptığı tek şey prompt göstermesi gerekip gerekmediğini kontrol etmek (evet bu fonksiyon normalde kullanıcıya prompt da gösteriyor bir izin mahiyetinde hatta istersek bu prompt da kullanıcıdan girdi de alabiliyoruz bu girdi de birazdan göreceğimiz entropy2 argümanı olarak şifreleme işlemine dahil ediliyor)
 
@@ -451,7 +454,7 @@ Bunun birde local machine tarafı var. Orda ekstra olarak LOCAL_MACHINE flag ın
 Bu yazıda DPAPI nin CryptProtect/UnprotectData API lerini elimden geldiğince irdeleyip size anlatmaya çalıştım. Daha çok detay var tabii ama sanırım şimdilik bu kadar yeter. Altta diagramları ve kodları bulabilirsiniz. Selametle kalın.
 
 KODLAR
-https://github.com/SemsYapar/DPAPIScripts/tree/main
+https://github.com/SemsYapar/DPAPIScripts
 
 DİAGRAMLAR  
 [cryptprotect_chain](/diags/cryptprotect_chain.html)  
