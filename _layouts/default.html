@@ -14,14 +14,26 @@
 
   <script>
     (function () {
-      var btn = document.querySelector('.theme-toggle');
-      if (!btn) return;
-      btn.addEventListener('click', function () {
-        var root = document.documentElement;
-        var next = root.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
-        root.setAttribute('data-theme', next);
-        try { localStorage.setItem('theme', next); } catch (e) {}
+      var colors = { light: '#fbfbfa', sepia: '#f4ecd8', gray: '#2b2d31', dark: '#0d1117' };
+      var root = document.documentElement;
+      var meta = document.querySelector('meta[name="theme-color"]');
+      var buttons = document.querySelectorAll('.theme-dot');
+      function mark() {
+        var cur = root.getAttribute('data-theme');
+        buttons.forEach(function (b) {
+          b.setAttribute('aria-pressed', b.getAttribute('data-theme-choice') === cur ? 'true' : 'false');
+        });
+      }
+      buttons.forEach(function (b) {
+        b.addEventListener('click', function () {
+          var t = b.getAttribute('data-theme-choice');
+          root.setAttribute('data-theme', t);
+          if (meta) meta.setAttribute('content', colors[t]);
+          try { localStorage.setItem('theme', t); } catch (e) {}
+          mark();
+        });
       });
+      mark();
     })();
   </script>
 </body>

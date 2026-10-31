@@ -1,6 +1,7 @@
 // ======================================================================
 //  TEMA AYARLARI: görünümü değiştirmek için çoğunlukla sadece burayı düzenle.
-//  Koyu tema varsayılan. Açık tema [data-theme="light"] altında.
+//  Dört okuma teması var: dark (Gece, varsayılan), light (Gün), sepia (Kâğıt), gray (Gri).
+//  Her tema [data-theme="..."] altında. Üst bardaki noktalar bunları değiştirir.
 // ======================================================================
 :root {
   color-scheme: dark;
@@ -39,4 +40,42 @@
   --selection:    rgba(35, 112, 123, 0.20);
 
   --code-block-bg: #0d1117;
+}
+
+// ---- Kâğıt: kitap okuma modu. Sıcak sayfa, serif yazı, biraz daha geniş satır aralığı.
+:root[data-theme="sepia"] {
+  color-scheme: light;
+
+  --bg:           #f4ecd8;
+  --bg-soft:      #eadfc4;
+  --border:       #d3c5a0;
+  --text:         #3b3226;
+  --text-strong:  #231b11;
+  --muted:        #6b5c45;
+  --accent:       #2f6b5e;
+  --accent-hover: #1b463c;
+  --selection:    rgba(47, 107, 94, 0.22);
+
+  --code-block-bg: #0d1117;
+
+  --font-body: Charter, "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  --font-size: 18px;
+  --line-height: 1.78;
+}
+
+// ---- Gri: loş, yumuşak koyu. Gece'den daha az kontrastlı, uzun okuma için.
+:root[data-theme="gray"] {
+  color-scheme: dark;
+
+  --bg:           #2b2d31;
+  --bg-soft:      #35383d;
+  --border:       #4a4e55;
+  --text:         #d4d6da;
+  --text-strong:  #f1f2f4;
+  --muted:        #a0a4ab;
+  --accent:       #8fc9d0;
+  --accent-hover: #bde6eb;
+  --selection:    rgba(143, 201, 208, 0.28);
+
+  --code-block-bg: #1f2125;
 }

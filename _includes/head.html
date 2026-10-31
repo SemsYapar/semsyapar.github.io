@@ -6,13 +6,16 @@
   {%- seo -%}
   <link rel="stylesheet" href="{{ '/assets/main.css' | relative_url }}">
   {%- feed_meta -%}
+  <meta name="theme-color" content="#0d1117">
   <script>
-    /* Sayfa çizilmeden önce temayı seç: kayıtlı tercih > sistem tercihi > koyu */
+    /* Sayfa çizilmeden önce temayı seç: kayıtlı tercih > sistem tercihi > gece */
     (function () {
+      var colors = { light: '#fbfbfa', sepia: '#f4ecd8', gray: '#2b2d31', dark: '#0d1117' };
       var t;
       try { t = localStorage.getItem('theme'); } catch (e) {}
-      if (!t) t = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      if (!colors[t]) t = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
       document.documentElement.setAttribute('data-theme', t);
+      document.querySelector('meta[name="theme-color"]').setAttribute('content', colors[t]);
     })();
   </script>
 </head>
