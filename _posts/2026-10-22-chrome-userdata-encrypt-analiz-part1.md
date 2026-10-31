@@ -232,11 +232,14 @@ Tamam veriler AES-256-GCM key ile şifreleniyor, veriyi şifreleyen key ise bir 
 
 ## Windows CryptProtect/UnprotectData tersine mühendisliği
 
+### Özet
 Şifreleme yolunun özet akışı şu şekilde:  
 CryptProtectData (input validasyonu ve isteğe bağlı kullanıcıya onay veya ekstra girdi prompt u) -> CryptProtectDataNoUI(veriyi RPC aktarımı esnasında şifrelemek için RtlEncryptMemory, RPC hattı üzerinden dpapisrv nin s_SSCryptProtectData fonksiyonuna teslim) -> s_SSCryptProtectData(kontrol ve kurulum, veriyi esas şifreleme fonksiyonuna iletme) -> SPCryptProtect(RtlDecryptMemory ile veriyi çözme sonra masterkey ile şifreleme) -> (şifrelenen veri geri döner)
 
 Encryption zincirinden başlayalım zaten diğeride onun simetrik tersi olacak. İlk hedef crypt32.dll indeki CryptProtectdata fonksiyonu. Bu fonksiyon key i şifrelemek için kullandığımız fonksiyon.  
 Yaptığı tek şey prompt göstermesi gerekip gerekmediğini kontrol etmek (evet bu fonksiyon normalde kullanıcıya prompt da gösteriyor bir izin mahiyetinde hatta istersek bu prompt da kullanıcıdan girdi de alabiliyoruz bu girdi de birazdan göreceğimiz entropy2 argümanı olarak şifreleme işlemine dahil ediliyor)
+
+### CryptProtectData fonksiyonunun genel özellikleri
 
 Fonksiyonun imzası şu şekilde:  
 ```c
@@ -252,7 +255,10 @@ DPAPI_IMP BOOL CryptProtectData(
 );
 ```
 
-Prompt gösterme ve onaylama hatta prompt ile istersek dediğim gibi girdi de alabiliyoruz kullanıcıdan, bunları tamamladıktan sonra esas şifreleme işlemi için argümanlar bir sonraki fonksiyonumuz olan CryptProtectDataNoUI ye devrediliyor:
+iki flag girdimiz var birincisi dwFlags, burda API nin nasıl çalışacağı yada göreceği ek işleri belirleyebiliyoruz. Eğer flag ın etkisi tek seferlikse flag sadece uygulanıyor eğer flag şifrelenen veri ile ilgili sürekli bilinmesi gereken bir özelliği niteliyorsa şifrelenen veri ile birlikte blob a gömülüyor. Örneğin "CRYPTPROTECT_AUDIT" bu flag blob a gömülüyor böylece blob ne zaman unprotect işlemine sokulsa ETW ile işlem ekstra olarak loglanıyor. yada "CRYPTPROTECT_LOCAL_MACHINE" bu flag verinin API yi çalıştıran kullanıcı adına değil local machine adına şifrelenmesini sağlıyor. Çözülürken bu bilgi lazım olduğu için blob a gömülüyor. Bu iki örneğin dışında "CRED_SYNC" da bir dwFlag ı ama bu tek seferlik bir sync işlemini tetikliyor blob a gömülmüyor.  
+
+pPromptStruct ayarlandığı takdirde API şifreleme işlemine başlamadan önce kullanıcının karşısına bir UI çıkartıp onay istiyor hatta özel flaglarla(STRONG) bu onayın yanında şifrede de istenebiliyor bu ek şifre entropy2 girdisi olarak değerlendirilicek.  
+input validasyonlarından ve UI gösterilecek mi gösterilmeyecek mi muhabbetinden sonra esas şifreleme işlemi için argümanlar bir sonraki fonksiyonumuz olan CryptProtectDataNoUI ye devrediliyor:
 
 ```c
 BOOL CryptProtectDataNoUI (
