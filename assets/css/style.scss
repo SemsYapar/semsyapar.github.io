@@ -1,0 +1,19 @@
+---
+---
+@import "minima";
+
+/* Normal linklerin rengi */
+a, .site-title, .site-nav .page-link {
+  color: #79bac1; /* İstediğin renk kodunu buraya yazabilirsin */
+}
+
+/* Linkin üzerine mouse ile gelindiğindeki (hover) renk */
+a:hover {
+  color: #a3e4ed; 
+}
+
+/* Post/yazı içerisindeki linklerin rengi (eğer minima ayarlarında farklıysa) */
+.post-content a {
+  color: #79bac1;
+  text-decoration: underline; /* İstersen altını çizebilirsin */
+}
