@@ -2,8 +2,12 @@ title: Sems
 description: >-
   Öğrenmek, öğrenmek, daha fazla öğrenmek...
 baseurl: ""
+
 # Build settings
 theme: minima
+plugins:
+  - minima
+
 minima:
   skin: dark
   social_links: []
