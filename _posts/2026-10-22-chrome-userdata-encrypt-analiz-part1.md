@@ -226,7 +226,7 @@ os_crypt_async::Encryptor::DecryptFlags flags;
             encryptor->EncryptString(*decrypted);
             ...
 ```
-- key Chrome memory sinde plain olarak tutulmuyor. CryptProtectMemory adında aslında sadece bir RtlEncryptMemory sarmalayıcısı olan Windows API si ile memory de şifreli olarak tutuluyor ve şifreleme için kullanılacağı Zaman CryptUnprotectMemory ile çözülüp kullanılıyor. (components/os_crypt/async/common/encryptor.cc:Encryptor::Key::Encrypt)
+- key Chrome memory sinde raw olarak tutulmuyor. CryptProtectMemory adında aslında sadece bir RtlEncryptMemory sarmalayıcısı olan Windows API si ile memory de şifreli olarak tutuluyor ve şifreleme için kullanılacağı Zaman CryptUnprotectMemory ile çözülüp kullanılıyor. (components/os_crypt/async/common/encryptor.cc:Encryptor::Key::Encrypt)
 
 Tamam veriler AES-256-GCM key ile şifreleniyor, veriyi şifreleyen key ise bir sefer oluşturulup sonra dpapi ile şifrelenip "Local State" dosyasında tutuluyor. Buraya kadar Chromium tarafını inceledik şimdi Windows un aes key ini dpapi ile nasıl şifrelediğini inceleyelim.
 
