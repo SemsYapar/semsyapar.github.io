@@ -450,9 +450,17 @@ Bunun birde local machine tarafı var. Orda ekstra olarak LOCAL_MACHINE flag ın
 
 Bu yazıda DPAPI nin CryptProtect/UnprotectData API lerini elimden geldiğince irdeleyip size anlatmaya çalıştım. Daha çok detay var tabii ama sanırım şimdilik bu kadar yeter. Altta diagramları ve kodları bulabilirsiniz. Selametle kalın.
 
+KODLAR
 [cng_encdec_memory.py](/_includes/kods/cng_encdec_memory.py)  
 [dpapi_protect.py](/_includes/kods/dpapi_protect.py)  
 [dpapi_trigger.py](/_includes/kods/dpapi_trigger.py)  
 [guidtool.py](/_includes/kods/guidtool.py)  
 [lsa_secrets.py](/_includes/kods/lsa_secrets.py)  
 [masterkey.py](/_includes/kods/masterkey.py)  
+
+DİAGRAMLAR
+[cryptprotect_chain](/diags/cryptprotect_chain.html)  
+[cryptunprotect_chain](/diags/cryptunprotect_chain.html)  
+[masterkey_flow](/diags/masterkey_flow.html)  
+[rtl_decrypt_flow](/diags/rtl_decrypt_flow.html)  
+[rtl_encrypt_flow](/diags/rtl_encrypt_flow.html)  
