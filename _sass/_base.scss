@@ -38,6 +38,15 @@ a {
   &:hover { color: var(--accent-hover); text-decoration: underline; }
 }
 
+// yazı içindeki bağlantılar: ince, belirgin alt çizgi (okurken link olduğu anlaşılsın)
+.post-content a, .page-content p a {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  text-decoration-color: rgba(154, 74, 34, 0.45);
+  &:hover { text-decoration-color: currentColor; }
+}
+
 img { max-width: 100%; height: auto; border-radius: var(--radius); }
 
 hr { border: 0; border-top: 1px solid var(--border); margin: 2em 0; }
