@@ -1,13 +1,22 @@
 title: Sems
 description: >-
   Öğrenmek, öğrenmek, daha fazla öğrenmek...
+lang: tr
+url: "https://semsyapar.github.io"
 baseurl: ""
+author: Sems
+timezone: Europe/Istanbul
 
-# Build settings
-theme: minima
+# Tema artık reponun içinde (_layouts, _includes, _sass). `theme:` YOK, bilerek.
 plugins:
-  - minima
+  - jekyll-feed
+  - jekyll-seo-tag
 
-minima:
-  skin: dark
-  social_links: []
+# Üst menüde görünecek sayfalar (sırayla)
+header_pages:
+  - about.markdown
+
+# Alt kısımdaki bağlantılar
+links:
+  - name: GitHub
+    url: https://github.com/SemsYapar

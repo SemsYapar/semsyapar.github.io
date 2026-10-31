@@ -1,0 +1,22 @@
+---
+layout: default
+---
+<div class="home">
+  {{ content }}
+
+  {%- if site.posts.size > 0 -%}
+    <h1 class="page-heading">{{ page.list_title | default: "Yazılar" }}</h1>
+    <ul class="post-list">
+      {%- for post in site.posts -%}
+      <li>
+        <span class="post-meta">
+          {% include date.html date=post.date %} · {% include reading-time.html text=post.content %}
+        </span>
+        <h2><a class="post-link" href="{{ post.url | relative_url }}">{{ post.title | escape }}</a></h2>
+        {%- if post.description -%}<p class="post-desc">{{ post.description | escape }}</p>{%- endif -%}
+      </li>
+      {%- endfor -%}
+    </ul>
+    <p class="rss-subscribe"><a href="{{ '/feed.xml' | relative_url }}">RSS ile takip et</a></p>
+  {%- endif -%}
+</div>

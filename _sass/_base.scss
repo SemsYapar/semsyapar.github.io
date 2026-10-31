@@ -1,0 +1,93 @@
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  font-family: var(--font-body);
+  font-size: var(--font-size);
+  line-height: var(--line-height);
+  color: var(--text);
+  background: var(--bg);
+  font-kerning: normal;
+}
+
+::selection { background: var(--selection); }
+
+h1, h2, h3, h4, h5, h6 {
+  margin: 1.8em 0 0.5em;
+  line-height: 1.3;
+  color: var(--text-strong);
+  font-weight: 600;
+}
+h1 { font-size: 1.9em; }
+h2 { font-size: 1.5em; }
+h3 { font-size: 1.25em; }
+h4 { font-size: 1.1em; }
+
+p, ul, ol, blockquote, table, pre { margin: 0 0 1.1em; }
+ul, ol { padding-left: 1.5em; }
+li > ul, li > ol { margin-bottom: 0; }
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+  &:hover { color: var(--accent-hover); text-decoration: underline; }
+}
+
+img { max-width: 100%; height: auto; border-radius: var(--radius); }
+
+hr { border: 0; border-top: 1px solid var(--border); margin: 2em 0; }
+
+blockquote {
+  margin-left: 0;
+  padding: 0.1em 1em;
+  color: var(--muted);
+  border-left: 3px solid var(--border);
+  > :last-child { margin-bottom: 0; }
+}
+
+// --- kod ---
+code, pre { font-family: var(--font-mono); font-size: 0.88em; }
+
+// satır içi kod
+code.highlighter-rouge, p > code, li > code, td > code {
+  padding: 0.15em 0.4em;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+// kod blokları
+div.highlighter-rouge {
+  margin: 0 0 1.2em;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--code-block-bg);
+  overflow: hidden;
+}
+.highlight { background: var(--code-block-bg); }
+pre, pre.highlight {
+  margin: 0;
+  padding: 14px 16px;
+  overflow-x: auto;
+  line-height: 1.5;
+  background: var(--code-block-bg);
+  > code { padding: 0; border: 0; background: none; font-size: 1em; }
+}
+// ``` olmadan girintiyle yazılan bloklar
+.post-content > pre { border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 1.2em; }
+
+// --- tablo ---
+table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  th, td { padding: 6px 12px; border: 1px solid var(--border); }
+  th { background: var(--bg-soft); color: var(--text-strong); text-align: left; }
+  tr:nth-child(even) td { background: var(--bg-soft); }
+}

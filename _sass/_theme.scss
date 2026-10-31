@@ -1,0 +1,42 @@
+// ======================================================================
+//  TEMA AYARLARI: görünümü değiştirmek için çoğunlukla sadece burayı düzenle.
+//  Koyu tema varsayılan. Açık tema [data-theme="light"] altında.
+// ======================================================================
+:root {
+  color-scheme: dark;
+
+  --bg:           #0d1117;   // sayfa arka planı
+  --bg-soft:      #161b22;   // kart / satır içi kod / tablo şeridi
+  --border:       #30363d;
+  --text:         #c9d1d9;
+  --text-strong:  #e6edf3;   // başlıklar
+  --muted:        #8b949e;   // tarih, alt yazı
+  --accent:       #79bac1;   // bağlantılar, vurgu
+  --accent-hover: #a3e4ed;
+  --selection:    rgba(121, 186, 193, 0.30);
+
+  --code-block-bg: #0d1117;  // kod blokları iki temada da koyu kalır
+
+  --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  --font-size: 17px;
+  --line-height: 1.7;
+  --content-width: 820px;
+  --radius: 6px;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --bg:           #fbfbfa;
+  --bg-soft:      #f0f2f4;
+  --border:       #d8dde2;
+  --text:         #2b3137;
+  --text-strong:  #11151a;
+  --muted:        #66707a;
+  --accent:       #23707b;
+  --accent-hover: #0f4f59;
+  --selection:    rgba(35, 112, 123, 0.20);
+
+  --code-block-bg: #0d1117;
+}
