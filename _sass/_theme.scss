@@ -1,25 +1,25 @@
 // ======================================================================
-//  TEMA AYARLARI: Sıcak, Dostane ve Rahat Okuma (Cream & Maple)
+//  TEMA AYARLARI: Sıcak, Dostane ve Rahat Okuma (Cocoa & Ember · Gece)
 // ======================================================================
 :root {
-  color-scheme: light;
+  color-scheme: dark;
 
-  --bg:           #fdfbf7;   // Taze, tüy gibi hafif krem kâğıt
-  --bg-soft:      #f3ebd9;   // Satır içi kod, kartlar, hafif vurgulu alanlar
-  --border:       #e8dbc3;   // Yumuşak, göze batmayan sınır çizgisi
-  --text:         #2d2723;   // Sıcak koyu çikolata (Siyah kadar sert değil, çok daha rahat okunur)
-  --text-strong:  #181310;   // Derin, belirgin başlıklar
-  --muted:        #7c6f64;   // Tarih, ikincil detaylar (yumuşak toprak tonu)
-  --accent:       #d96b27;   // Dostane, enerjik tarçın / sıcak turuncu
-  --accent-hover: #b35011;   // Etkileşimde derinleşen tarçın
-  --selection:    rgba(217, 107, 39, 0.18);
+  --bg:           #1c1713;   // Derin sıcak kahve (saf siyah değil, göz yormaz)
+  --bg-soft:      #28211b;   // Satır içi kod, kartlar, hafif vurgulu alanlar
+  --border:       #3a3027;   // Yumuşak, belli belirsiz sınır çizgisi
+  --text:         #d9cfc2;   // Sıcak krem gri (beyaz kadar parlak değil)
+  --text-strong:  #f1e8db;   // Başlıklar için biraz daha aydınlık krem
+  --muted:        #988a7b;   // Tarih, ikincil detaylar
+  --accent:       #e98a4a;   // Koyu zeminde okunaklı, yumuşatılmış tarçın turuncusu
+  --accent-hover: #f5a66c;   // Etkileşimde açılan sıcak amber
+  --selection:    rgba(233, 138, 74, 0.28);
 
-  --code-block-bg: #211c18;  // Koyu çikolata-kahve kod bloğu (arka planla uyumlu sıcak koyu ton)
+  --code-block-bg: #120e0b;  // Sayfadan bir tık daha koyu kod bloğu
 
   --font-body: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --font-size: 18px;
-  --line-height: 1.7;
+  --line-height: 1.75;       // Karanlıkta satır aralığı biraz açılınca okuma rahatlar
   --content-width: 720px;
-  --radius: 10px;            // Dostane hissi artıran hafif yuvarlatılmış köşeler
+  --radius: 10px;
 }
