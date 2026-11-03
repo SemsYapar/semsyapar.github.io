@@ -2,6 +2,7 @@
 layout: post
 title: "Google Chrome Windows, User Data Encryption Analizi Part1"
 date: 2026-10-24
+last_modified_at: 2026-11-04
 ---
 
 # Köken ve Tarih
