@@ -204,7 +204,7 @@ Biz v10 dan başlayalım. Ondan öncesinde ciddli bir yapı yok gördük basitç
 Chromium un en güncel versiyonuna bakarsak ki benim bu yazıdaki referans tag ım 159.0.8129.1, v10 ile ilgili her şeyin codebase deki [components/os_crypt/async](https://source.chromium.org/chromium/chromium/src/+/main:components/os_crypt/async/;bpv=0;bpt=0) dizinin altında olduğunu göreceksiniz. Burda yaptığımız okumalarla v10 un özelliklerini maddeler halinde sıralayabiliriz:  
 - async bir crypt mekanizmasına uyum sağlatılmaya çalışılıyor, eskiden sync kısmıda varmış kaldırılmış
 - dpapi crytprotectdata ile şifrelenen key base64encode lanıp "User Data" altında "Local State" dosyasında os_crypt.encrypted_key entry sinde tutuluyor, cryptunprotectdata ile çözülüyor. (browser/dpapi_key_provider.cc:GetKeyInternal, DecryptKeyWithDPAPI)
-- Bu key ile şifrelenen verilerin başında "v10" prefix i var, şifrelenen verilerde base64encode lanıyor. [components/os_crypt/async/common/encryptor.cc:Encryptor::DecryptData]
+- Bu key ile şifrelenen verilerin başında provider prefix(v10 için "v10") i var. [components/os_crypt/async/common/encryptor.cc:Encryptor::DecryptData]
 - şifreleme yöntemi aes-256-gcm [components/os_crypt/async/common/encryptor.cc:Encryptor::Key::Encrypt]
 - daha önceden şifrelenen bir veri deşifrelenirken o chrome runtime ında şifreleme için tercih edilmiş provider ile şifrelenmemişse  (provider dan kasıt v10 ve v20) veri ile birlikte gelen should_reencrypt flag ı tiklenir, bu flag ı kontrol eden kod parçaları veriyi güncel provider ile tekrar şifreler. Yani tercih edilen provider v20 ise ama veri v10 ile çözülmüşse, bu tarz yerlerde geri v20 ile şifreleniyor çözüldükten hemen sonra. Örnek (chrome/browser/enterprise/encryption/cache_encryption_provider_impl.cc):  
 ```cpp
@@ -227,6 +227,22 @@ os_crypt_async::Encryptor::DecryptFlags flags;
             ...
 ```
 - key Chrome memory sinde raw olarak tutulmuyor. CryptProtectMemory adında aslında sadece bir RtlEncryptMemory sarmalayıcısı olan Windows API si ile memory de şifreli olarak tutuluyor ve şifreleme için kullanılacağı Zaman CryptUnprotectMemory ile çözülüp kullanılıyor. (components/os_crypt/async/common/encryptor.cc:Encryptor::Key::Encrypt)
+
+Chromium tarafında v10 key üretimi adım adım şöyle işliyor:  
+Eğer daha önceden key üretildiyse şifresi çözülüp kullanılıyor.  
+Üretilmemişse Random 32byte üretiliyor işte bu key imiz olacak. Şimdi onu diske kaydedicez.  
+CryptProtectData ile bu raw key şifreleniyor  
+"DPAPI" prefix i raw key in başına ekleniyor  
+Tüm veri base64 ile encode ediliyor  
+User Data altında "Local State" json dosyasına ["os_crypt.encrypted_key"] = key şeklinde yerleştiriliyor.  
+
+v10 key i ile veri şifresi çözme:  
+verinin başındaki provider kısmı atılır("v10" string i)  
+12 byte lık nonce alınır  
+geri kalan kısım ciphertext  
+
+v10 ile şifrelenmiş ve diskete tutulan verinin struct u -> "v10"+nonce+ciphertext
+v10 key inin diskteki struct u -> base64encode("DPAPI"+CryptProtectData(key))
 
 Tamam veriler AES-256-GCM key ile şifreleniyor, veriyi şifreleyen key ise bir sefer oluşturulup sonra dpapi ile şifrelenip "Local State" dosyasında tutuluyor. Buraya kadar Chromium tarafını inceledik şimdi Windows un aes key ini dpapi ile nasıl şifrelediğini inceleyelim.
 
