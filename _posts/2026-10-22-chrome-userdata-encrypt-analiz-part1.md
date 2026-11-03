@@ -230,17 +230,17 @@ os_crypt_async::Encryptor::DecryptFlags flags;
 - key Chrome memory sinde raw olarak tutulmuyor. CryptProtectMemory adında aslında sadece bir RtlEncryptMemory sarmalayıcısı olan Windows API si ile memory de şifreli olarak tutuluyor ve şifreleme için kullanılacağı Zaman CryptUnprotectMemory ile çözülüp kullanılıyor. (components/os_crypt/async/common/encryptor.cc:Encryptor::Key::Encrypt)
 
 Chromium tarafında v10 key üretimi adım adım şöyle işliyor:  
-Eğer daha önceden key üretildiyse şifresi çözülüp kullanılıyor.  
-Üretilmemişse Random 32byte üretiliyor işte bu key imiz olacak. Şimdi onu diske kaydedicez.  
-CryptProtectData ile bu raw key şifreleniyor  
-"DPAPI" prefix i raw key in başına ekleniyor  
-Tüm veri base64 ile encode ediliyor  
-User Data altında "Local State" json dosyasına ["os_crypt.encrypted_key"] = key şeklinde yerleştiriliyor.  
+- Eğer daha önceden key üretildiyse şifresi çözülüp kullanılıyor.  
+- Üretilmemişse Random 32byte üretiliyor işte bu key imiz olacak. Şimdi onu diske kaydedicez.  
+- CryptProtectData ile bu raw key şifreleniyor.  
+- "DPAPI" prefix i raw key in başına ekleniyor.  
+- Tüm veri base64 ile encode ediliyor.  
+- User Data altında "Local State" json dosyasına ["os_crypt.encrypted_key"] = key şeklinde yerleştiriliyor.  
 
 v10 key i ile veri şifresi çözme:  
-verinin başındaki provider kısmı atılır("v10" string i)  
-12 byte lık nonce alınır  
-geri kalan kısım ciphertext  
+- verinin başındaki provider kısmı atılır("v10" string i)  
+- 12 byte lık nonce(şifrelenirken de bu nonce her şifreleme için rastgele üretiliyor) alınır  
+- geri kalan kısım ciphertext  
 
 v10 ile şifrelenmiş ve diskete tutulan verinin struct u -> "v10"+nonce+ciphertext
 v10 key inin diskteki struct u -> base64encode("DPAPI"+CryptProtectData(key))
